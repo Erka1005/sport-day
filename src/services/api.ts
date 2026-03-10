@@ -28,6 +28,53 @@ export type SportItem = {
   scoring_type: string;
 };
 
+export type CreateMatchPayload = {
+  sport_id: number;
+  start_at: string;
+  venue: string;
+  team_a_id: number;
+  team_b_id: number;
+};
+
+export type MatchItem = {
+  id: number;
+  sport_id: number;
+  start_at: string;
+  venue: string;
+  team_a_id: number;
+  team_b_id: number;
+  status?: string;
+  score_a?: number;
+  score_b?: number;
+  winner_team_id?: number | null;
+};
+
+export type SetMatchResultPayload = {
+  score_a: number;
+  score_b: number;
+};
+
+export type SetMatchResultResponse = string;
+
+export type DraftPoolItem = {
+  employee_name: string;
+};
+
+export type DraftPickItem = {
+  employee_name: string;
+  team_name?: string | null;
+  team_id?: number | null;
+  round?: number | null;
+  pick_number?: number | null;
+};
+
+export type DraftStartResponse = string;
+export type DraftResetResponse = string;
+export type DraftUndoResponse = string;
+export type DraftChooseResponse = string;
+export type DraftConfirmResponse = string;
+export type DraftAddToPoolResponse = string;
+
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
   "http://localhost:8000";
@@ -54,6 +101,24 @@ function buildAuthHeaders(userId?: number): HeadersInit {
   return headers;
 }
 
+function resolveErrorMessage(data: unknown, fallback: string): string {
+  if (!data) return fallback;
+
+  if (typeof data === "string") return data;
+
+  if (typeof data === "object" && data !== null) {
+    const maybe = data as {
+      detail?: string;
+      message?: string;
+      error?: string;
+    };
+
+    return maybe.detail || maybe.message || maybe.error || fallback;
+  }
+
+  return fallback;
+}
+
 export async function loginApi(payload: LoginPayload): Promise<AuthUser> {
   const res = await fetch(`${API_BASE}/auth/login`, {
     method: "POST",
@@ -63,16 +128,12 @@ export async function loginApi(payload: LoginPayload): Promise<AuthUser> {
     body: JSON.stringify(payload),
   });
 
-  const data = (await parseJsonSafe<
+  const data = await parseJsonSafe<
     LoginResponse | { detail?: string; message?: string }
-  >(res)) as LoginResponse | { detail?: string; message?: string } | null;
+  >(res);
 
   if (!res.ok || !data) {
-    const message =
-      (data as { detail?: string; message?: string } | null)?.detail ||
-      (data as { detail?: string; message?: string } | null)?.message ||
-      "Нэвтрэх үед алдаа гарлаа.";
-    throw new Error(message);
+    throw new Error(resolveErrorMessage(data, "Нэвтрэх үед алдаа гарлаа."));
   }
 
   if (
@@ -96,16 +157,12 @@ export async function createSportApi(
     body: JSON.stringify(payload),
   });
 
-  const data = (await parseJsonSafe<
+  const data = await parseJsonSafe<
     SportItem | { detail?: string; message?: string }
-  >(res)) as SportItem | { detail?: string; message?: string } | null;
+  >(res);
 
   if (!res.ok || !data) {
-    const message =
-      (data as { detail?: string; message?: string } | null)?.detail ||
-      (data as { detail?: string; message?: string } | null)?.message ||
-      "Failed to create sport.";
-    throw new Error(message);
+    throw new Error(resolveErrorMessage(data, "Failed to create sport."));
   }
 
   return data as SportItem;
@@ -122,20 +179,12 @@ export async function listSportsApi(userId?: number): Promise<SportItem[]> {
         : undefined,
   });
 
-  const data = (await parseJsonSafe<
+  const data = await parseJsonSafe<
     SportItem[] | { items?: SportItem[] } | { detail?: string; message?: string }
-  >(res)) as
-    | SportItem[]
-    | { items?: SportItem[] }
-    | { detail?: string; message?: string }
-    | null;
+  >(res);
 
   if (!res.ok || !data) {
-    const message =
-      (data as { detail?: string; message?: string } | null)?.detail ||
-      (data as { detail?: string; message?: string } | null)?.message ||
-      "Failed to load sports.";
-    throw new Error(message);
+    throw new Error(resolveErrorMessage(data, "Failed to load sports."));
   }
 
   if (Array.isArray(data)) {
@@ -148,6 +197,248 @@ export async function listSportsApi(userId?: number): Promise<SportItem[]> {
 
   return [];
 }
+
+export async function createMatchApi(
+  payload: CreateMatchPayload,
+  userId: number
+): Promise<MatchItem> {
+  const res = await fetch(`${API_BASE}/sports-day/schedule`, {
+    method: "POST",
+    headers: buildAuthHeaders(userId),
+    body: JSON.stringify(payload),
+  });
+
+  const data = await parseJsonSafe<
+    MatchItem | { detail?: string; message?: string }
+  >(res);
+
+  if (!res.ok || !data) {
+    throw new Error(resolveErrorMessage(data, "Failed to create match."));
+  }
+
+  return data as MatchItem;
+}
+
+export async function listMatchesApi(userId?: number): Promise<MatchItem[]> {
+  const res = await fetch(`${API_BASE}/sports-day/schedule`, {
+    method: "GET",
+    headers:
+      typeof userId === "number"
+        ? {
+            "X-User-Id": String(userId),
+          }
+        : undefined,
+  });
+
+  const data = await parseJsonSafe<
+    MatchItem[] | { items?: MatchItem[] } | { detail?: string; message?: string }
+  >(res);
+
+  if (!res.ok || !data) {
+    throw new Error(resolveErrorMessage(data, "Failed to load matches."));
+  }
+
+  if (Array.isArray(data)) {
+    return data;
+  }
+
+  if ("items" in data && Array.isArray(data.items)) {
+    return data.items;
+  }
+
+  return [];
+}
+
+export async function setMatchResultApi(
+  matchId: number,
+  payload: SetMatchResultPayload,
+  userId: number
+): Promise<SetMatchResultResponse> {
+  const res = await fetch(`${API_BASE}/sports-day/match/${matchId}/result`, {
+    method: "POST",
+    headers: buildAuthHeaders(userId),
+    body: JSON.stringify(payload),
+  });
+
+  const data = await parseJsonSafe<
+    string | { detail?: string; message?: string }
+  >(res);
+
+  if (!res.ok || data === null) {
+    throw new Error(resolveErrorMessage(data, "Failed to set match result."));
+  }
+
+  if (typeof data === "string") {
+    return data;
+  }
+
+  return "Result submitted successfully.";
+}
+
+/* ---------------- Draft APIs ---------------- */
+
+export async function getDraftPoolApi(): Promise<DraftPoolItem[]> {
+  const res = await fetch(`${API_BASE}/sports-day/draft/pool`, {
+    method: "GET",
+  });
+
+  const data = await parseJsonSafe<
+    DraftPoolItem[] | { items?: DraftPoolItem[] } | { detail?: string; message?: string }
+  >(res);
+
+  if (!res.ok || !data) {
+    throw new Error(resolveErrorMessage(data, "Failed to load draft pool."));
+  }
+
+  if (Array.isArray(data)) {
+    return data;
+  }
+
+  if ("items" in data && Array.isArray(data.items)) {
+    return data.items;
+  }
+
+  return [];
+}
+
+export async function getDraftPicksApi(): Promise<DraftPickItem[]> {
+  const res = await fetch(`${API_BASE}/sports-day/draft/picks`, {
+    method: "GET",
+  });
+
+  const data = await parseJsonSafe<
+    DraftPickItem[] | { items?: DraftPickItem[] } | { detail?: string; message?: string }
+  >(res);
+
+  if (!res.ok || !data) {
+    throw new Error(resolveErrorMessage(data, "Failed to load draft picks."));
+  }
+
+  if (Array.isArray(data)) {
+    return data;
+  }
+
+  if ("items" in data && Array.isArray(data.items)) {
+    return data.items;
+  }
+
+  return [];
+}
+
+export async function startDraftApi(
+  rounds: number,
+  userId: number
+): Promise<DraftStartResponse> {
+  const res = await fetch(
+    `${API_BASE}/sports-day/draft/start?rounds=${encodeURIComponent(rounds)}`,
+    {
+      method: "POST",
+      headers: buildAuthHeaders(userId),
+    }
+  );
+
+  const data = await parseJsonSafe<string | { detail?: string; message?: string }>(res);
+
+  if (!res.ok || data === null) {
+    throw new Error(resolveErrorMessage(data, "Failed to start draft."));
+  }
+
+  return typeof data === "string" ? data : "Draft started.";
+}
+
+export async function resetDraftApi(userId: number): Promise<DraftResetResponse> {
+  const res = await fetch(`${API_BASE}/sports-day/draft/reset`, {
+    method: "POST",
+    headers: buildAuthHeaders(userId),
+  });
+
+  const data = await parseJsonSafe<string | { detail?: string; message?: string }>(res);
+
+  if (!res.ok || data === null) {
+    throw new Error(resolveErrorMessage(data, "Failed to reset draft."));
+  }
+
+  return typeof data === "string" ? data : "Draft reset.";
+}
+
+export async function undoDraftApi(userId: number): Promise<DraftUndoResponse> {
+  const res = await fetch(`${API_BASE}/sports-day/draft/undo`, {
+    method: "POST",
+    headers: buildAuthHeaders(userId),
+  });
+
+  const data = await parseJsonSafe<string | { detail?: string; message?: string }>(res);
+
+  if (!res.ok || data === null) {
+    throw new Error(resolveErrorMessage(data, "Failed to undo draft action."));
+  }
+
+  return typeof data === "string" ? data : "Draft action undone.";
+}
+
+export async function addToDraftPoolApi(
+  employeeName: string,
+  userId: number
+): Promise<DraftAddToPoolResponse> {
+  const res = await fetch(`${API_BASE}/sports-day/draft/add-to-pool`, {
+    method: "POST",
+    headers: buildAuthHeaders(userId),
+    body: JSON.stringify({
+      employee_name: employeeName,
+    }),
+  });
+
+  const data = await parseJsonSafe<string | { detail?: string; message?: string }>(res);
+
+  if (!res.ok || data === null) {
+    throw new Error(resolveErrorMessage(data, "Failed to add employee to pool."));
+  }
+
+  return typeof data === "string" ? data : "Added to pool.";
+}
+
+export async function chooseDraftPlayerApi(
+  employeeName: string,
+  userId: number
+): Promise<DraftChooseResponse> {
+  const res = await fetch(`${API_BASE}/sports-day/draft/choose`, {
+    method: "POST",
+    headers: buildAuthHeaders(userId),
+    body: JSON.stringify({
+      employee_name: employeeName,
+    }),
+  });
+
+  const data = await parseJsonSafe<string | { detail?: string; message?: string }>(res);
+
+  if (!res.ok || data === null) {
+    throw new Error(resolveErrorMessage(data, "Failed to choose player."));
+  }
+
+  return typeof data === "string" ? data : "Player chosen.";
+}
+
+export async function confirmDraftPickApi(
+  userId: number
+): Promise<DraftConfirmResponse> {
+  const res = await fetch(`${API_BASE}/sports-day/draft/confirm`, {
+    method: "POST",
+    headers: buildAuthHeaders(userId),
+    body: JSON.stringify({
+      confirm: true,
+    }),
+  });
+
+  const data = await parseJsonSafe<string | { detail?: string; message?: string }>(res);
+
+  if (!res.ok || data === null) {
+    throw new Error(resolveErrorMessage(data, "Failed to confirm pick."));
+  }
+
+  return typeof data === "string" ? data : "Pick confirmed.";
+}
+
+/* ---------------- Auth local storage ---------------- */
 
 export function saveAuthUser(user: AuthUser): void {
   if (typeof window === "undefined") return;
@@ -180,124 +471,4 @@ export function isAuthenticated(): boolean {
 export function hasRole(user: AuthUser | null, roles: UserRole[]): boolean {
   if (!user) return false;
   return roles.includes(user.role);
-}
-export type CreateMatchPayload = {
-  sport_id: number;
-  start_at: string;
-  venue: string;
-  team_a_id: number;
-  team_b_id: number;
-};
-
-export type MatchItem = {
-  id: number;
-  sport_id: number;
-  start_at: string;
-  venue: string;
-  team_a_id: number;
-  team_b_id: number;
-  status?: string;
-  score_a?: number;
-  score_b?: number;
-  winner_team_id?: number | null;
-};
-
-export async function createMatchApi(
-  payload: CreateMatchPayload,
-  userId: number
-): Promise<MatchItem> {
-  const res = await fetch(`${API_BASE}/sports-day/schedule`, {
-    method: "POST",
-    headers: buildAuthHeaders(userId),
-    body: JSON.stringify(payload),
-  });
-
-  const data = (await parseJsonSafe<
-    MatchItem | { detail?: string; message?: string }
-  >(res)) as MatchItem | { detail?: string; message?: string } | null;
-
-  if (!res.ok || !data) {
-    const message =
-      (data as { detail?: string; message?: string } | null)?.detail ||
-      (data as { detail?: string; message?: string } | null)?.message ||
-      "Failed to create match.";
-    throw new Error(message);
-  }
-
-  return data as MatchItem;
-}
-
-export async function listMatchesApi(userId?: number): Promise<MatchItem[]> {
-  const res = await fetch(`${API_BASE}/sports-day/schedule`, {
-    method: "GET",
-    headers:
-      typeof userId === "number"
-        ? {
-            "X-User-Id": String(userId),
-          }
-        : undefined,
-  });
-
-  const data = (await parseJsonSafe<
-    MatchItem[] | { items?: MatchItem[] } | { detail?: string; message?: string }
-  >(res)) as
-    | MatchItem[]
-    | { items?: MatchItem[] }
-    | { detail?: string; message?: string }
-    | null;
-
-  if (!res.ok || !data) {
-    const message =
-      (data as { detail?: string; message?: string } | null)?.detail ||
-      (data as { detail?: string; message?: string } | null)?.message ||
-      "Failed to load matches.";
-    throw new Error(message);
-  }
-
-  if (Array.isArray(data)) {
-    return data;
-  }
-
-  if ("items" in data && Array.isArray(data.items)) {
-    return data.items;
-  }
-
-  return [];
-}
-
-export type SetMatchResultPayload = {
-  score_a: number;
-  score_b: number;
-};
-
-export type SetMatchResultResponse = string;
-
-export async function setMatchResultApi(
-  matchId: number,
-  payload: SetMatchResultPayload,
-  userId: number
-): Promise<SetMatchResultResponse> {
-  const res = await fetch(`${API_BASE}/sports-day/match/${matchId}/result`, {
-    method: "POST",
-    headers: buildAuthHeaders(userId),
-    body: JSON.stringify(payload),
-  });
-
-  const data = (await parseJsonSafe<
-    string | { detail?: string; message?: string }
-  >(res)) as string | { detail?: string; message?: string } | null;
-
-  if (!res.ok || !data) {
-    const message =
-      (data as { detail?: string; message?: string } | null)?.detail ||
-      (data as { detail?: string; message?: string } | null)?.message ||
-      "Failed to set match result.";
-    throw new Error(message);
-  }
-
-  if (typeof data === "string") {
-    return data;
-  }
-
-  return "Result submitted successfully.";
 }

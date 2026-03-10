@@ -243,7 +243,7 @@ export default function AdminPage() {
         </section>
       )}
 
-     {activeSection === "draft" && <DraftShell mode="admin" user={user} />}
+   {activeSection === "draft" && <DraftShell mode="admin" user={user} />}
     </AdminLayout>
   );
 }

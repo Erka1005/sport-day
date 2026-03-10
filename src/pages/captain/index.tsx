@@ -50,7 +50,7 @@ export default function CaptainPage() {
               </div>
               <h1 className="mt-1 text-2xl font-black text-white">Captain Draft Hub</h1>
               <p className="mt-1 text-sm text-slate-300">
-                Choose players for your team when it is your turn.
+                Manage your draft actions and confirm player picks.
               </p>
             </div>
 
