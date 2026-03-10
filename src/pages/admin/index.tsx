@@ -10,6 +10,7 @@ import MatchFormCard from "@/components/admin/match-form-card";
 import MatchListCard from "@/components/admin/match-list-card";
 import ResultFormCard from "@/components/admin/result-form-card";
 import ResultHistoryCard from "@/components/admin/result-history-card";
+import DraftShell from "@/components/draft/draft-shell";
 import {
   AuthUser,
   CreateMatchPayload,
@@ -242,14 +243,7 @@ export default function AdminPage() {
         </section>
       )}
 
-      {activeSection === "draft" && (
-        <section>
-          <PlaceholderCard
-            title="Draft Module"
-            desc="This section will be used for draft start and draft controls."
-          />
-        </section>
-      )}
+     {activeSection === "draft" && <DraftShell mode="admin" user={user} />}
     </AdminLayout>
   );
 }

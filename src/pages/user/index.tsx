@@ -2,17 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import { AuthUser, getAuthUser } from "@/services/api";
-import PortalLayout from "@/components/portal-layout";
-import DashboardCard from "@/components/dashboard-card";
-import EndpointListCard from "@/components/endpoint-list-card";
-
-const userEndpoints = [
-  { method: "GET" as const, path: "/sports-day/teams", label: "List teams" },
-  { method: "GET" as const, path: "/sports-day/standings", label: "View standings" },
-  { method: "GET" as const, path: "/sports-day/sports", label: "List sports" },
-  { method: "GET" as const, path: "/sports-day/schedule", label: "List matches" },
-];
+import DraftShell from "@/components/draft/draft-shell";
+import { AuthUser, getAuthUser, logout } from "@/services/api";
 
 export default function UserPage() {
   const router = useRouter();
@@ -34,40 +25,57 @@ export default function UserPage() {
     setUser(currentUser);
   }, [router]);
 
+  function handleLogout() {
+    logout();
+    router.replace("/login");
+  }
+
   if (!user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
-        Loading...
+        Loading portal...
       </div>
     );
   }
 
   return (
-    <PortalLayout
-      portalLabel="Personal Hub"
-      title="Sports Day Portal"
-      subtitle="View teams, standings, sports, and match schedules"
-      username={user.username}
-    >
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <DashboardCard title="Teams" description="Browse available teams and current member information." tag="Browse" />
-        <DashboardCard title="Standings" description="Check rankings and updated performance overview." tag="Ranking" />
-        <DashboardCard title="Sports" description="See all available sports and competition categories." tag="Events" />
-        <DashboardCard title="Schedule" description="Review upcoming matches and event timing." tag="Timeline" />
-      </section>
+    <div className="min-h-screen bg-[#07111f] text-white">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.18),transparent_25%),radial-gradient(circle_at_80%_10%,rgba(16,185,129,0.14),transparent_22%),radial-gradient(circle_at_bottom,rgba(234,179,8,0.10),transparent_30%)]" />
+      <div className="relative z-10">
+        <header className="border-b border-white/10 bg-white/5 backdrop-blur-xl">
+          <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">
+                MMS Sports Day
+              </div>
+              <h1 className="mt-1 text-2xl font-black text-white">Public Draft Board</h1>
+              <p className="mt-1 text-sm text-slate-300">
+                View teams, players, and draft progress in read-only mode.
+              </p>
+            </div>
 
-      <section className="mt-8 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-        <EndpointListCard title="Planned API Actions" items={userEndpoints} />
+            <div className="flex items-center gap-3">
+              <div className="hidden rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-right md:block">
+                <div className="text-[11px] uppercase tracking-[0.16em] text-slate-300">
+                  Signed in as
+                </div>
+                <div className="text-sm font-semibold text-white">{user.username}</div>
+              </div>
 
-        <div className="rounded-3xl border border-white/10 bg-white/10 p-5 shadow-[0_15px_40px_rgba(0,0,0,0.25)] backdrop-blur-xl">
-          <h3 className="text-lg font-bold text-white">Public View Notes</h3>
-          <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
-            <p>This area is intended for regular portal users.</p>
-            <p>Only viewing features are shown here at the first stage.</p>
-            <p>We can later replace these blocks with real standings, team lists, and schedules.</p>
+              <button
+                onClick={handleLogout}
+                className="rounded-2xl bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-600"
+              >
+                Sign Out
+              </button>
+            </div>
           </div>
-        </div>
-      </section>
-    </PortalLayout>
+        </header>
+
+        <main className="mx-auto max-w-7xl px-6 py-8">
+          <DraftShell mode="viewer" user={user} />
+        </main>
+      </div>
+    </div>
   );
 }

@@ -2,17 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import { AuthUser, getAuthUser } from "@/services/api";
-import PortalLayout from "@/components/portal-layout";
-import DashboardCard from "@/components/dashboard-card";
-import EndpointListCard from "@/components/endpoint-list-card";
-
-const captainEndpoints = [
-  { method: "PUT" as const, path: "/sports-day/teams/my/name", label: "Rename my team" },
-  { method: "POST" as const, path: "/sports-day/draft/add-to-pool", label: "Add participant to pool" },
-  { method: "POST" as const, path: "/sports-day/draft/choose", label: "Choose participant" },
-  { method: "POST" as const, path: "/sports-day/draft/confirm", label: "Confirm selection" },
-];
+import DraftShell from "@/components/draft/draft-shell";
+import { AuthUser, getAuthUser, logout } from "@/services/api";
 
 export default function CaptainPage() {
   const router = useRouter();
@@ -34,40 +25,57 @@ export default function CaptainPage() {
     setUser(currentUser);
   }, [router]);
 
+  function handleLogout() {
+    logout();
+    router.replace("/login");
+  }
+
   if (!user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
-        Loading...
+        Loading captain portal...
       </div>
     );
   }
 
   return (
-    <PortalLayout
-      portalLabel="Team Hub"
-      title="Team Hub"
-      subtitle="Team coordination and draft-related actions"
-      username={user.username}
-    >
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <DashboardCard title="Team Identity" description="Update and manage your team presentation settings." tag="Team" />
-        <DashboardCard title="Draft Pool" description="Review and prepare available participants for selection." tag="Draft" />
-        <DashboardCard title="Selection Flow" description="Choose participants and track current picks." tag="Selection" />
-        <DashboardCard title="Confirmation" description="Finalize team decisions before the next phase." tag="Finalize" />
-      </section>
+    <div className="min-h-screen bg-[#07111f] text-white">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.18),transparent_25%),radial-gradient(circle_at_80%_10%,rgba(16,185,129,0.14),transparent_22%),radial-gradient(circle_at_bottom,rgba(234,179,8,0.10),transparent_30%)]" />
+      <div className="relative z-10">
+        <header className="border-b border-white/10 bg-white/5 backdrop-blur-xl">
+          <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-200">
+                MMS Sports Day
+              </div>
+              <h1 className="mt-1 text-2xl font-black text-white">Captain Draft Hub</h1>
+              <p className="mt-1 text-sm text-slate-300">
+                Choose players for your team when it is your turn.
+              </p>
+            </div>
 
-      <section className="mt-8 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-        <EndpointListCard title="Planned API Actions" items={captainEndpoints} />
+            <div className="flex items-center gap-3">
+              <div className="hidden rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-right md:block">
+                <div className="text-[11px] uppercase tracking-[0.16em] text-slate-300">
+                  Signed in as
+                </div>
+                <div className="text-sm font-semibold text-white">{user.username}</div>
+              </div>
 
-        <div className="rounded-3xl border border-white/10 bg-white/10 p-5 shadow-[0_15px_40px_rgba(0,0,0,0.25)] backdrop-blur-xl">
-          <h3 className="text-lg font-bold text-white">Captain Preview</h3>
-          <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
-            <p>This screen is built for captain-level workflow only.</p>
-            <p>Later we can add real team roster tables and draft status.</p>
-            <p>Current buttons are intentionally mock until API wiring starts.</p>
+              <button
+                onClick={handleLogout}
+                className="rounded-2xl bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-600"
+              >
+                Sign Out
+              </button>
+            </div>
           </div>
-        </div>
-      </section>
-    </PortalLayout>
+        </header>
+
+        <main className="mx-auto max-w-7xl px-6 py-8">
+          <DraftShell mode="captain" user={user} />
+        </main>
+      </div>
+    </div>
   );
 }
