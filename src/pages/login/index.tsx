@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
-import { getAuthUser, loginApi, saveAuthUser } from "@/services/api";
+import { AuthUser, getAuthUser, loginApi, saveAuthUser } from "@/services/api";
 
 const floatingStats = [
   { label: "Teams", value: "8" },
@@ -16,12 +16,19 @@ const highlights = [
   "Secure access to your personal dashboard",
 ];
 
+const DEFAULT_PUBLIC_USER: AuthUser = {
+  user_id: 0,
+  username: "User",
+  role: "user",
+};
+
 export default function LoginPage() {
   const router = useRouter();
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [guestLoading, setGuestLoading] = useState(false);
   const [error, setError] = useState("");
 
   const currentGreeting = useMemo(() => {
@@ -55,10 +62,30 @@ export default function LoginPage() {
       router.replace("/");
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Something went wrong while signing in.";
+        err instanceof Error
+          ? err.message
+          : "Something went wrong while signing in.";
       setError(message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleGuestAccess() {
+    setError("");
+    setGuestLoading(true);
+
+    try {
+      saveAuthUser(DEFAULT_PUBLIC_USER);
+      await router.replace("/user");
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Something went wrong while opening public access.";
+      setError(message);
+    } finally {
+      setGuestLoading(false);
     }
   }
 
@@ -130,9 +157,21 @@ export default function LoginPage() {
             </div>
 
             <div className="mt-10 hidden gap-4 md:grid md:max-w-2xl md:grid-cols-3">
-              <PortalMiniCard title="Schedules" sub="Live event flow" accent="cyan" />
-              <PortalMiniCard title="Updates" sub="Latest announcements" accent="emerald" />
-              <PortalMiniCard title="Access" sub="Private member area" accent="amber" />
+              <PortalMiniCard
+                title="Schedules"
+                sub="Live event flow"
+                accent="cyan"
+              />
+              <PortalMiniCard
+                title="Updates"
+                sub="Latest announcements"
+                accent="emerald"
+              />
+              <PortalMiniCard
+                title="Access"
+                sub="Private member area"
+                accent="amber"
+              />
             </div>
           </div>
         </section>
@@ -154,7 +193,8 @@ export default function LoginPage() {
                       Sign In
                     </h2>
                     <p className="mt-2 text-sm leading-6 text-slate-300">
-                      Enter your credentials to continue to the MMS Sports Day portal.
+                      Admin and captain accounts can sign in here. Public users can
+                      continue directly below.
                     </p>
                   </div>
 
@@ -179,9 +219,8 @@ export default function LoginPage() {
                         type="text"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
-                        placeholder="Enter your username"
+                        placeholder="Enter admin or captain username"
                         className="w-full bg-transparent text-sm text-white placeholder:text-slate-400 outline-none"
-                        required
                       />
                     </div>
                   </div>
@@ -197,17 +236,16 @@ export default function LoginPage() {
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="Enter your password"
                         className="w-full bg-transparent text-sm text-white placeholder:text-slate-400 outline-none"
-                        required
                       />
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between gap-4">
                     <div className="text-xs text-slate-300">
-                      Access is assigned automatically after verification.
+                      Public visitors can continue without sign-in.
                     </div>
                     <div className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[11px] font-medium text-slate-200">
-                      Verified access
+                      Public access enabled
                     </div>
                   </div>
 
@@ -219,7 +257,7 @@ export default function LoginPage() {
 
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={loading || guestLoading}
                     className="group relative flex w-full items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-r from-cyan-500 via-sky-500 to-emerald-500 px-4 py-3.5 text-sm font-bold text-white shadow-[0_14px_30px_rgba(6,182,212,0.25)] transition duration-300 hover:scale-[1.01] hover:shadow-[0_18px_40px_rgba(16,185,129,0.28)] disabled:cursor-not-allowed disabled:opacity-70"
                   >
                     <span className="absolute inset-0 translate-x-[-120%] bg-[linear-gradient(110deg,transparent,rgba(255,255,255,0.35),transparent)] transition duration-1000 group-hover:translate-x-[120%]" />
@@ -232,16 +270,40 @@ export default function LoginPage() {
                       ) : (
                         <>
                           <span className="inline-block h-2.5 w-2.5 rounded-full bg-white shadow-[0_0_16px_rgba(255,255,255,0.95)]" />
-                          Sign In
+                          Sign In 
                         </>
                       )}
                     </span>
                   </button>
                 </form>
 
+                <div className="my-5 flex items-center gap-3">
+                  <div className="h-px flex-1 bg-white/10" />
+                  <span className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                    or
+                  </span>
+                  <div className="h-px flex-1 bg-white/10" />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleGuestAccess}
+                  disabled={guestLoading || loading}
+                  className="flex w-full items-center justify-center rounded-2xl border border-white/15 bg-white/10 px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {guestLoading ? (
+                    <span className="flex items-center gap-3">
+                      <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                      Opening public portal...
+                    </span>
+                  ) : (
+                    "Continue as Public User"
+                  )}
+                </button>
+
                 <div className="mt-6 grid grid-cols-3 gap-3">
-                  <InfoPill title="Portal" desc="Private" />
-                  <InfoPill title="Access" desc="Verified" />
+                  <InfoPill title="Portal" desc="Public" />
+                  <InfoPill title="Access" desc="Guest" />
                   <InfoPill title="Event" desc="Live" />
                 </div>
               </div>
@@ -297,7 +359,9 @@ function PortalMiniCard({
     <div
       className={`rounded-2xl border bg-gradient-to-br p-4 backdrop-blur-md ${accentMap[accent]}`}
     >
-      <div className="text-sm font-bold uppercase tracking-[0.18em]">{title}</div>
+      <div className="text-sm font-bold uppercase tracking-[0.18em]">
+        {title}
+      </div>
       <div className="mt-2 text-sm text-slate-200">{sub}</div>
     </div>
   );
