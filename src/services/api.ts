@@ -57,23 +57,30 @@ export type SetMatchResultPayload = {
 export type SetMatchResultResponse = string;
 
 export type DraftPoolItem = {
+  id: number;
   employee_name: string;
+  sport_key: string;
+  photo_url: string;
+  eligible: boolean;
 };
 
 export type DraftPickItem = {
+  round_no: number;
+  pick_no: number;
+  team_code: string;
   employee_name: string;
-  team_name?: string | null;
-  team_id?: number | null;
-  round?: number | null;
-  pick_number?: number | null;
+  sport_key: string;
+  photo_url: string;
 };
 
-export type DraftStartResponse = string;
-export type DraftResetResponse = string;
-export type DraftUndoResponse = string;
-export type DraftChooseResponse = string;
-export type DraftConfirmResponse = string;
-export type DraftAddToPoolResponse = string;
+export type DraftStateResponse = {
+  status: "idle" | "running" | "completed" | string;
+  rounds: number;
+  current_round: number;
+  current_pick_no: number;
+  current_team_code: string;
+  sport_key: string;
+};
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
@@ -119,6 +126,23 @@ function resolveErrorMessage(data: unknown, fallback: string): string {
   return fallback;
 }
 
+function withQuery(
+  path: string,
+  params: Record<string, string | number | undefined | null>
+): string {
+  const url = new URL(`${API_BASE}${path}`);
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      url.searchParams.set(key, String(value));
+    }
+  });
+
+  return url.toString();
+}
+
+/* ---------------- Auth ---------------- */
+
 export async function loginApi(payload: LoginPayload): Promise<AuthUser> {
   const res = await fetch(`${API_BASE}/auth/login`, {
     method: "POST",
@@ -146,6 +170,8 @@ export async function loginApi(payload: LoginPayload): Promise<AuthUser> {
 
   return data as LoginResponse;
 }
+
+/* ---------------- Sports ---------------- */
 
 export async function createSportApi(
   payload: CreateSportPayload,
@@ -187,16 +213,13 @@ export async function listSportsApi(userId?: number): Promise<SportItem[]> {
     throw new Error(resolveErrorMessage(data, "Failed to load sports."));
   }
 
-  if (Array.isArray(data)) {
-    return data;
-  }
-
-  if ("items" in data && Array.isArray(data.items)) {
-    return data.items;
-  }
+  if (Array.isArray(data)) return data;
+  if ("items" in data && Array.isArray(data.items)) return data.items;
 
   return [];
 }
+
+/* ---------------- Matches ---------------- */
 
 export async function createMatchApi(
   payload: CreateMatchPayload,
@@ -238,13 +261,8 @@ export async function listMatchesApi(userId?: number): Promise<MatchItem[]> {
     throw new Error(resolveErrorMessage(data, "Failed to load matches."));
   }
 
-  if (Array.isArray(data)) {
-    return data;
-  }
-
-  if ("items" in data && Array.isArray(data.items)) {
-    return data.items;
-  }
+  if (Array.isArray(data)) return data;
+  if ("items" in data && Array.isArray(data.items)) return data.items;
 
   return [];
 }
@@ -268,19 +286,36 @@ export async function setMatchResultApi(
     throw new Error(resolveErrorMessage(data, "Failed to set match result."));
   }
 
-  if (typeof data === "string") {
-    return data;
-  }
-
+  if (typeof data === "string") return data;
   return "Result submitted successfully.";
 }
 
-/* ---------------- Draft APIs ---------------- */
+/* ---------------- Draft ---------------- */
 
-export async function getDraftPoolApi(): Promise<DraftPoolItem[]> {
-  const res = await fetch(`${API_BASE}/sports-day/draft/pool`, {
-    method: "GET",
+export async function importAllDraftFoldersApi(userId: number): Promise<string> {
+  const res = await fetch(`${API_BASE}/sports-day/draft/import-all-folders`, {
+    method: "POST",
+    headers: buildAuthHeaders(userId),
   });
+
+  const data = await parseJsonSafe<
+    string | { detail?: string; message?: string }
+  >(res);
+
+  if (!res.ok || data === null) {
+    throw new Error(resolveErrorMessage(data, "Failed to import folders."));
+  }
+
+  return typeof data === "string" ? data : "Import completed.";
+}
+
+export async function getDraftPoolApi(sportKey: string): Promise<DraftPoolItem[]> {
+  const res = await fetch(
+    withQuery("/sports-day/draft/pool", { sport: sportKey }),
+    {
+      method: "GET",
+    }
+  );
 
   const data = await parseJsonSafe<
     DraftPoolItem[] | { items?: DraftPoolItem[] } | { detail?: string; message?: string }
@@ -290,21 +325,19 @@ export async function getDraftPoolApi(): Promise<DraftPoolItem[]> {
     throw new Error(resolveErrorMessage(data, "Failed to load draft pool."));
   }
 
-  if (Array.isArray(data)) {
-    return data;
-  }
-
-  if ("items" in data && Array.isArray(data.items)) {
-    return data.items;
-  }
+  if (Array.isArray(data)) return data;
+  if ("items" in data && Array.isArray(data.items)) return data.items;
 
   return [];
 }
 
-export async function getDraftPicksApi(): Promise<DraftPickItem[]> {
-  const res = await fetch(`${API_BASE}/sports-day/draft/picks`, {
-    method: "GET",
-  });
+export async function getDraftPicksApi(sportKey: string): Promise<DraftPickItem[]> {
+  const res = await fetch(
+    withQuery("/sports-day/draft/picks", { sport: sportKey }),
+    {
+      method: "GET",
+    }
+  );
 
   const data = await parseJsonSafe<
     DraftPickItem[] | { items?: DraftPickItem[] } | { detail?: string; message?: string }
@@ -314,30 +347,51 @@ export async function getDraftPicksApi(): Promise<DraftPickItem[]> {
     throw new Error(resolveErrorMessage(data, "Failed to load draft picks."));
   }
 
-  if (Array.isArray(data)) {
-    return data;
-  }
-
-  if ("items" in data && Array.isArray(data.items)) {
-    return data.items;
-  }
+  if (Array.isArray(data)) return data;
+  if ("items" in data && Array.isArray(data.items)) return data.items;
 
   return [];
 }
 
+export async function getDraftStateApi(): Promise<DraftStateResponse | null> {
+  const res = await fetch(`${API_BASE}/sports-day/draft/state`, {
+    method: "GET",
+  });
+
+  const data = await parseJsonSafe<
+    DraftStateResponse | { detail?: string; message?: string }
+  >(res);
+
+  if (!res.ok || !data) {
+    throw new Error(resolveErrorMessage(data, "Failed to load draft state."));
+  }
+
+  if (typeof data === "object" && data !== null && "status" in data) {
+    return data as DraftStateResponse;
+  }
+
+  return null;
+}
+
 export async function startDraftApi(
+  sportKey: string,
   rounds: number,
   userId: number
-): Promise<DraftStartResponse> {
+): Promise<string> {
   const res = await fetch(
-    `${API_BASE}/sports-day/draft/start?rounds=${encodeURIComponent(rounds)}`,
+    withQuery("/sports-day/draft/start", {
+      sport: sportKey,
+      rounds,
+    }),
     {
       method: "POST",
       headers: buildAuthHeaders(userId),
     }
   );
 
-  const data = await parseJsonSafe<string | { detail?: string; message?: string }>(res);
+  const data = await parseJsonSafe<
+    string | { detail?: string; message?: string }
+  >(res);
 
   if (!res.ok || data === null) {
     throw new Error(resolveErrorMessage(data, "Failed to start draft."));
@@ -346,13 +400,23 @@ export async function startDraftApi(
   return typeof data === "string" ? data : "Draft started.";
 }
 
-export async function resetDraftApi(userId: number): Promise<DraftResetResponse> {
-  const res = await fetch(`${API_BASE}/sports-day/draft/reset`, {
-    method: "POST",
-    headers: buildAuthHeaders(userId),
-  });
+export async function resetDraftApi(
+  sportKey: string,
+  userId: number
+): Promise<string> {
+  const res = await fetch(
+    withQuery("/sports-day/draft/reset", {
+      sport: sportKey,
+    }),
+    {
+      method: "POST",
+      headers: buildAuthHeaders(userId),
+    }
+  );
 
-  const data = await parseJsonSafe<string | { detail?: string; message?: string }>(res);
+  const data = await parseJsonSafe<
+    string | { detail?: string; message?: string }
+  >(res);
 
   if (!res.ok || data === null) {
     throw new Error(resolveErrorMessage(data, "Failed to reset draft."));
@@ -361,13 +425,15 @@ export async function resetDraftApi(userId: number): Promise<DraftResetResponse>
   return typeof data === "string" ? data : "Draft reset.";
 }
 
-export async function undoDraftApi(userId: number): Promise<DraftUndoResponse> {
+export async function undoDraftApi(userId: number): Promise<string> {
   const res = await fetch(`${API_BASE}/sports-day/draft/undo`, {
     method: "POST",
     headers: buildAuthHeaders(userId),
   });
 
-  const data = await parseJsonSafe<string | { detail?: string; message?: string }>(res);
+  const data = await parseJsonSafe<
+    string | { detail?: string; message?: string }
+  >(res);
 
   if (!res.ok || data === null) {
     throw new Error(resolveErrorMessage(data, "Failed to undo draft action."));
@@ -376,40 +442,23 @@ export async function undoDraftApi(userId: number): Promise<DraftUndoResponse> {
   return typeof data === "string" ? data : "Draft action undone.";
 }
 
-export async function addToDraftPoolApi(
-  employeeName: string,
-  userId: number
-): Promise<DraftAddToPoolResponse> {
-  const res = await fetch(`${API_BASE}/sports-day/draft/add-to-pool`, {
-    method: "POST",
-    headers: buildAuthHeaders(userId),
-    body: JSON.stringify({
-      employee_name: employeeName,
-    }),
-  });
-
-  const data = await parseJsonSafe<string | { detail?: string; message?: string }>(res);
-
-  if (!res.ok || data === null) {
-    throw new Error(resolveErrorMessage(data, "Failed to add employee to pool."));
-  }
-
-  return typeof data === "string" ? data : "Added to pool.";
-}
-
 export async function chooseDraftPlayerApi(
   employeeName: string,
+  sportKey: string,
   userId: number
-): Promise<DraftChooseResponse> {
+): Promise<string> {
   const res = await fetch(`${API_BASE}/sports-day/draft/choose`, {
     method: "POST",
     headers: buildAuthHeaders(userId),
     body: JSON.stringify({
       employee_name: employeeName,
+      sport_key: sportKey,
     }),
   });
 
-  const data = await parseJsonSafe<string | { detail?: string; message?: string }>(res);
+  const data = await parseJsonSafe<
+    string | { detail?: string; message?: string }
+  >(res);
 
   if (!res.ok || data === null) {
     throw new Error(resolveErrorMessage(data, "Failed to choose player."));
@@ -418,9 +467,7 @@ export async function chooseDraftPlayerApi(
   return typeof data === "string" ? data : "Player chosen.";
 }
 
-export async function confirmDraftPickApi(
-  userId: number
-): Promise<DraftConfirmResponse> {
+export async function confirmDraftPickApi(userId: number): Promise<string> {
   const res = await fetch(`${API_BASE}/sports-day/draft/confirm`, {
     method: "POST",
     headers: buildAuthHeaders(userId),
@@ -429,7 +476,9 @@ export async function confirmDraftPickApi(
     }),
   });
 
-  const data = await parseJsonSafe<string | { detail?: string; message?: string }>(res);
+  const data = await parseJsonSafe<
+    string | { detail?: string; message?: string }
+  >(res);
 
   if (!res.ok || data === null) {
     throw new Error(resolveErrorMessage(data, "Failed to confirm pick."));
@@ -438,7 +487,7 @@ export async function confirmDraftPickApi(
   return typeof data === "string" ? data : "Pick confirmed.";
 }
 
-/* ---------------- Auth local storage ---------------- */
+/* ---------------- local auth storage ---------------- */
 
 export function saveAuthUser(user: AuthUser): void {
   if (typeof window === "undefined") return;

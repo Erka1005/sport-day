@@ -149,7 +149,7 @@ export default function CaptainPage() {
             </div>
           </div>
 
-          <DraftShell mode="captain" user={user} />
+         <DraftShell mode="captain" user={user} />
         </main>
       </div>
     </div>
