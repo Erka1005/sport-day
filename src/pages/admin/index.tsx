@@ -8,6 +8,8 @@ import SportFormCard from "@/components/admin/sport-form-card";
 import SportListCard from "@/components/admin/sport-list-card";
 import MatchFormCard from "@/components/admin/match-form-card";
 import MatchListCard from "@/components/admin/match-list-card";
+import ResultFormCard from "@/components/admin/result-form-card";
+import ResultHistoryCard from "@/components/admin/result-history-card";
 import {
   AuthUser,
   CreateMatchPayload,
@@ -19,7 +21,17 @@ import {
   getAuthUser,
   listMatchesApi,
   listSportsApi,
+  setMatchResultApi,
 } from "@/services/api";
+
+type ResultHistoryItem = {
+  id: string;
+  matchId: number;
+  scoreA: number;
+  scoreB: number;
+  createdAt: string;
+  message: string;
+};
 
 export default function AdminPage() {
   const router = useRouter();
@@ -34,6 +46,8 @@ export default function AdminPage() {
   const [matches, setMatches] = useState<MatchItem[]>([]);
   const [matchesLoading, setMatchesLoading] = useState(true);
   const [matchesError, setMatchesError] = useState("");
+
+  const [resultHistory, setResultHistory] = useState<ResultHistoryItem[]>([]);
 
   useEffect(() => {
     const currentUser = getAuthUser();
@@ -90,14 +104,54 @@ export default function AdminPage() {
 
   async function handleCreateSport(payload: CreateSportPayload) {
     if (!user) throw new Error("User not found.");
+
     const created = await createSportApi(payload, user.user_id);
     setSports((prev) => [created, ...prev]);
   }
 
   async function handleCreateMatch(payload: CreateMatchPayload) {
     if (!user) throw new Error("User not found.");
+
     const created = await createMatchApi(payload, user.user_id);
     setMatches((prev) => [created, ...prev]);
+  }
+
+  async function handleSetResult(
+    matchId: number,
+    payload: { score_a: number; score_b: number }
+  ) {
+    if (!user) {
+      throw new Error("User not found.");
+    }
+
+    const message = await setMatchResultApi(matchId, payload, user.user_id);
+
+    setResultHistory((prev) => [
+      {
+        id: `${Date.now()}-${matchId}`,
+        matchId,
+        scoreA: payload.score_a,
+        scoreB: payload.score_b,
+        createdAt: new Date().toLocaleString(),
+        message,
+      },
+      ...prev,
+    ]);
+
+    setMatches((prev) =>
+      prev.map((item) =>
+        item.id === matchId
+          ? {
+              ...item,
+              score_a: payload.score_a,
+              score_b: payload.score_b,
+              status: "completed",
+            }
+          : item
+      )
+    );
+
+    return message;
   }
 
   if (!user) {
@@ -123,7 +177,11 @@ export default function AdminPage() {
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <StatCard label="Configured Sports" value={String(sports.length)} />
             <StatCard label="Scheduled Matches" value={String(matches.length)} />
-            <StatCard label="Current Module" value="Overview" accent="cyan" />
+            <StatCard
+              label="Submitted Results"
+              value={String(resultHistory.length)}
+              accent="emerald"
+            />
             <StatCard label="Access Level" value="Admin" accent="amber" />
           </div>
 
@@ -138,11 +196,11 @@ export default function AdminPage() {
             />
             <InfoCard
               title="Result Submission"
-              desc="Next step: add result submission for completed matches."
+              desc="Submit match scores and keep track of recent result updates."
             />
             <InfoCard
               title="Draft Control"
-              desc="Next step: add draft session start and monitoring tools."
+              desc="This section is reserved for draft start and draft controls."
             />
           </div>
         </section>
@@ -178,11 +236,9 @@ export default function AdminPage() {
       )}
 
       {activeSection === "results" && (
-        <section>
-          <PlaceholderCard
-            title="Results Module"
-            desc="This section will be used for match result submission."
-          />
+        <section className="grid gap-6 xl:grid-cols-2">
+          <ResultFormCard onSubmit={handleSetResult} />
+          <ResultHistoryCard items={resultHistory} />
         </section>
       )}
 
@@ -205,13 +261,15 @@ function StatCard({
 }: {
   label: string;
   value: string;
-  accent?: "white" | "cyan" | "amber";
+  accent?: "white" | "cyan" | "amber" | "emerald";
 }) {
   const color =
     accent === "cyan"
       ? "text-cyan-300"
       : accent === "amber"
       ? "text-amber-300"
+      : accent === "emerald"
+      ? "text-emerald-300"
       : "text-white";
 
   return (

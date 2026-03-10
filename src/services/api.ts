@@ -264,3 +264,40 @@ export async function listMatchesApi(userId?: number): Promise<MatchItem[]> {
 
   return [];
 }
+
+export type SetMatchResultPayload = {
+  score_a: number;
+  score_b: number;
+};
+
+export type SetMatchResultResponse = string;
+
+export async function setMatchResultApi(
+  matchId: number,
+  payload: SetMatchResultPayload,
+  userId: number
+): Promise<SetMatchResultResponse> {
+  const res = await fetch(`${API_BASE}/sports-day/match/${matchId}/result`, {
+    method: "POST",
+    headers: buildAuthHeaders(userId),
+    body: JSON.stringify(payload),
+  });
+
+  const data = (await parseJsonSafe<
+    string | { detail?: string; message?: string }
+  >(res)) as string | { detail?: string; message?: string } | null;
+
+  if (!res.ok || !data) {
+    const message =
+      (data as { detail?: string; message?: string } | null)?.detail ||
+      (data as { detail?: string; message?: string } | null)?.message ||
+      "Failed to set match result.";
+    throw new Error(message);
+  }
+
+  if (typeof data === "string") {
+    return data;
+  }
+
+  return "Result submitted successfully.";
+}
