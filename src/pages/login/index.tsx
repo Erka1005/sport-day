@@ -198,7 +198,7 @@ export default function LoginPage() {
                     </p>
                   </div>
 
-                  <div className="rounded-2xl border border-white/10 bg-white/10 px-3 py-2 text-right backdrop-blur-md">
+                  <div className="rounded-2xl border border-white/10 bg-white/10 px-5 py-2 text-right backdrop-blur-md">
                     <div className="text-[10px] uppercase tracking-[0.16em] text-slate-300">
                       Status
                     </div>
