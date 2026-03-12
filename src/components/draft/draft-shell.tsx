@@ -1,5 +1,3 @@
-// components/draft/draft-shell.tsx
-
 import { useEffect, useMemo, useState } from "react";
 import {
   AuthUser,
@@ -31,7 +29,6 @@ const CATEGORY_OPTIONS = [
   { key: "female_volleyball", label: "Women's Volleyball", quota: 1 },
   { key: "male_tennis", label: "Men's Tennis", quota: 1 },
   { key: "female_tennis", label: "Women's Tennis", quota: 1 },
-
 ];
 
 function normalizeMediaUrl(url?: string | null): string {
@@ -49,19 +46,30 @@ function normalizeMediaUrl(url?: string | null): string {
 }
 
 function prettyCategory(key: string): string {
-  const found = CATEGORY_OPTIONS.find((item) => item.key === key);
-  return found?.label || key;
+  return CATEGORY_OPTIONS.find((item) => item.key === key)?.label || key;
 }
 
 function categoryQuota(key: string): string {
   const found = CATEGORY_OPTIONS.find((item) => item.key === key);
   if (!found) return "-";
-  return found.quota > 0 ? `${found.quota} players per team` : "Custom";
+  return `${found.quota} players per team`;
 }
 
-function capitalize(value: string): string {
-  if (!value) return value;
-  return value.charAt(0).toUpperCase() + value.slice(1);
+function prettyStatus(status?: string | null): string {
+  if (!status) return "Unknown";
+
+  switch (status.toLowerCase()) {
+    case "idle":
+      return "Idle";
+    case "active":
+      return "Active";
+    case "completed":
+      return "Completed";
+    case "paused":
+      return "Paused";
+    default:
+      return status;
+  }
 }
 
 export default function DraftShell({ mode, user }: DraftShellProps) {
@@ -85,12 +93,15 @@ export default function DraftShell({ mode, user }: DraftShellProps) {
   const [actionSuccess, setActionSuccess] = useState("");
 
   const [selectedEmployeeName, setSelectedEmployeeName] = useState("");
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     void refreshState();
   }, []);
 
   useEffect(() => {
+    setSelectedEmployeeName("");
+    setSearch("");
     void refreshForCategory(selectedCategory);
   }, [selectedCategory]);
 
@@ -102,9 +113,9 @@ export default function DraftShell({ mode, user }: DraftShellProps) {
       const data = await getDraftPoolApi(categoryKey);
       setPool(data);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to load draft pool.";
-      setPoolError(message);
+      setPoolError(
+        err instanceof Error ? err.message : "Failed to load pool."
+      );
     } finally {
       setPoolLoading(false);
     }
@@ -118,9 +129,9 @@ export default function DraftShell({ mode, user }: DraftShellProps) {
       const data = await getDraftPicksApi(categoryKey);
       setPicks(data);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to load draft picks.";
-      setPicksError(message);
+      setPicksError(
+        err instanceof Error ? err.message : "Failed to load picks."
+      );
     } finally {
       setPicksLoading(false);
     }
@@ -142,9 +153,9 @@ export default function DraftShell({ mode, user }: DraftShellProps) {
         setRoundsInput(data.rounds);
       }
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to load draft state.";
-      setStateError(message);
+      setStateError(
+        err instanceof Error ? err.message : "Failed to load draft state."
+      );
     } finally {
       setStateLoading(false);
     }
@@ -168,41 +179,35 @@ export default function DraftShell({ mode, user }: DraftShellProps) {
       setActionSuccess(message);
       await refreshAll();
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Draft action failed.";
-      setActionError(message);
+      setActionError(
+        err instanceof Error ? err.message : "Action failed."
+      );
     } finally {
       setActionLoading(false);
     }
   }
 
-  const groupedPicksByRound = useMemo(() => {
-    const map = new Map<number, DraftPickItem[]>();
+  const filteredPool = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+    if (!keyword) return pool;
 
-    for (const pick of picks) {
-      const current = map.get(pick.round_no) || [];
-      current.push(pick);
-      map.set(pick.round_no, current);
-    }
+    return pool.filter((item) =>
+      item.employee_name.toLowerCase().includes(keyword)
+    );
+  }, [pool, search]);
 
-    return Array.from(map.entries()).sort((a, b) => a[0] - b[0]);
-  }, [picks]);
-
-  const selectedPoolPlayer = useMemo(() => {
+  const selectedPlayer = useMemo(() => {
     return pool.find((item) => item.employee_name === selectedEmployeeName) || null;
   }, [pool, selectedEmployeeName]);
 
   return (
-    <div className="space-y-6">
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Pool Players" value={String(pool.length)} accent="cyan" />
-        <StatCard label="Confirmed Picks" value={String(picks.length)} accent="emerald" />
-        <StatCard
+    <div className="space-y-5">
+      <section className="grid gap-4 md:grid-cols-2">
+        <SimpleStat
           label="Draft Status"
-          value={draftState?.status ? capitalize(draftState.status) : "Unknown"}
-          accent="amber"
+          value={stateLoading ? "Loading..." : prettyStatus(draftState?.status)}
         />
-        <StatCard label="Current Category" value={prettyCategory(selectedCategory)} />
+        <SimpleStat label="Category" value={prettyCategory(selectedCategory)} />
       </section>
 
       <section className="rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur-xl">
@@ -237,27 +242,23 @@ export default function DraftShell({ mode, user }: DraftShellProps) {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-black/10 p-4 text-sm text-slate-300">
-          Rule: <span className="font-semibold text-white">{categoryQuota(selectedCategory)}</span>
+        <div className="rounded-2xl border border-white/10 bg-black/10 px-4 py-3">
+          <div className="text-xs uppercase tracking-[0.16em] text-slate-400">
+            Rule
+          </div>
+          <div className="mt-2 text-sm font-semibold text-white">
+            {categoryQuota(selectedCategory)}
+          </div>
         </div>
 
-        {stateError ? (
-          <div className="mt-4 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-            {stateError}
-          </div>
-        ) : stateLoading ? (
-          <div className="mt-4 rounded-2xl border border-white/10 bg-black/10 p-4 text-sm text-slate-300">
-            Loading draft state...
-          </div>
-        ) : draftState ? (
-          <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <MiniInfo label="Status" value={capitalize(draftState.status)} />
+        {!stateLoading && draftState ? (
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
             <MiniInfo
-              label="Current Round"
-              value={`${draftState.current_round} / ${draftState.rounds}`}
+              label="Round"
+              value={`${draftState.current_round}/${draftState.rounds}`}
             />
             <MiniInfo
-              label="Current Pick"
+              label="Pick"
               value={String(draftState.current_pick_no)}
             />
             <MiniInfo
@@ -265,11 +266,13 @@ export default function DraftShell({ mode, user }: DraftShellProps) {
               value={draftState.current_team_code || "-"}
             />
           </div>
-        ) : (
-          <div className="mt-4 rounded-2xl border border-white/10 bg-black/10 p-4 text-sm text-slate-300">
-            Draft state is not available yet.
+        ) : null}
+
+        {stateError ? (
+          <div className="mt-4 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            {stateError}
           </div>
-        )}
+        ) : null}
       </section>
 
       {actionError ? (
@@ -284,297 +287,205 @@ export default function DraftShell({ mode, user }: DraftShellProps) {
         </div>
       ) : null}
 
-      <section className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
-        <div className="space-y-6">
-          {mode === "admin" && (
-            <>
-              <div className="rounded-3xl border border-white/10 bg-white/10 p-6 backdrop-blur-xl">
-                <div className="mb-4">
-                  <div className="inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-200">
-                    Import
-                  </div>
-                  <h2 className="mt-3 text-xl font-bold text-white">
-                    Import Players From Folders
-                  </h2>
-                  <p className="mt-2 text-sm leading-6 text-slate-300">
-                    Import all draft players from backend folder structure.
-                  </p>
-                </div>
+      {mode === "admin" ? (
+        <section className="rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur-xl space-y-4">
+          <h2 className="text-lg font-bold text-white">Admin Controls</h2>
 
-                <button
-                  disabled={actionLoading}
-                  onClick={() =>
-                    void runAction(() => importAllDraftFoldersApi(user.user_id))
-                  }
-                  className="w-full rounded-2xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-3 text-sm font-bold text-white disabled:opacity-50"
-                >
-                  Import All Folders
-                </button>
-              </div>
-
-              <div className="rounded-3xl border border-white/10 bg-white/10 p-6 backdrop-blur-xl">
-                <div className="mb-4">
-                  <div className="inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-200">
-                    Draft Controls
-                  </div>
-                  <h2 className="mt-3 text-xl font-bold text-white">Admin Actions</h2>
-                  <p className="mt-2 text-sm leading-6 text-slate-300">
-                    Start, reset, and undo the selected draft category.
-                  </p>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-200">
-                      Rounds
-                    </label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={20}
-                      value={roundsInput}
-                      onChange={(e) => setRoundsInput(Number(e.target.value) || 1)}
-                      className="w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-white outline-none focus:border-cyan-400/60"
-                    />
-                  </div>
-
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <button
-                      disabled={actionLoading}
-                      onClick={() =>
-                        void runAction(() =>
-                          startDraftApi(selectedCategory, roundsInput, user.user_id)
-                        )
-                      }
-                      className="rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-3 text-sm font-bold text-white disabled:opacity-50"
-                    >
-                      Start
-                    </button>
-
-                    <button
-                      disabled={actionLoading}
-                      onClick={() =>
-                        void runAction(() =>
-                          resetDraftApi(selectedCategory, user.user_id)
-                        )
-                      }
-                      className="rounded-2xl bg-gradient-to-r from-red-500 to-rose-500 px-4 py-3 text-sm font-bold text-white disabled:opacity-50"
-                    >
-                      Reset
-                    </button>
-
-                    <button
-                      disabled={actionLoading}
-                      onClick={() =>
-                        void runAction(() => undoDraftApi(user.user_id))
-                      }
-                      className="rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-3 text-sm font-bold text-white disabled:opacity-50"
-                    >
-                      Undo
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-
-          {mode === "captain" && (
-            <div className="rounded-3xl border border-white/10 bg-white/10 p-6 backdrop-blur-xl">
-              <div className="mb-4">
-                <div className="inline-flex rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-200">
-                  Captain Controls
-                </div>
-                <h2 className="mt-3 text-xl font-bold text-white">Choose & Confirm</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-300">
-                  Add To Pool is removed. Select a player from the current pool, then choose and confirm.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-white/10 bg-black/10 p-4">
-                  <div className="text-xs uppercase tracking-[0.16em] text-slate-400">
-                    Selected Player
-                  </div>
-                  <div className="mt-2 text-sm font-semibold text-white">
-                    {selectedEmployeeName || "No player selected"}
-                  </div>
-                </div>
-
-                {selectedPoolPlayer ? (
-                  <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4">
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={normalizeMediaUrl(selectedPoolPlayer.photo_url)}
-                        alt={selectedPoolPlayer.employee_name}
-                        className="h-14 w-14 rounded-full border border-white/10 bg-white object-cover"
-                      />
-                      <div>
-                        <div className="text-sm font-semibold text-white">
-                          {selectedPoolPlayer.employee_name}
-                        </div>
-                        <div className="mt-1 text-xs text-slate-300">
-                          {selectedPoolPlayer.sport_key}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
-
-                <div className="grid gap-3">
-                  <button
-                    disabled={actionLoading || !selectedEmployeeName.trim()}
-                    onClick={() =>
-                      void runAction(() =>
-                        chooseDraftPlayerApi(
-                          selectedEmployeeName.trim(),
-                          selectedCategory,
-                          user.user_id
-                        )
-                      )
-                    }
-                    className="rounded-2xl bg-gradient-to-r from-cyan-500 to-sky-500 px-4 py-3 text-sm font-bold text-white disabled:opacity-50"
-                  >
-                    Choose Selected Player
-                  </button>
-
-                  <button
-                    disabled={actionLoading}
-                    onClick={() =>
-                      void runAction(() => confirmDraftPickApi(user.user_id))
-                    }
-                    className="rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-3 text-sm font-bold text-white disabled:opacity-50"
-                  >
-                    Confirm Pick
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="rounded-3xl border border-white/10 bg-white/10 p-6 backdrop-blur-xl">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div>
-                <div className="inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-200">
-                  Pool
-                </div>
-                <h2 className="mt-3 text-xl font-bold text-white">Draft Pool</h2>
-              </div>
-
-              <button
-                onClick={() => void refreshPool(selectedCategory)}
-                className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-sm text-white hover:bg-white/15"
-              >
-                Refresh
-              </button>
-            </div>
-
-            {poolError ? (
-              <div className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-                {poolError}
-              </div>
-            ) : poolLoading ? (
-              <div className="rounded-2xl border border-white/10 bg-black/10 p-4 text-sm text-slate-300">
-                Loading draft pool...
-              </div>
-            ) : pool.length === 0 ? (
-              <div className="rounded-2xl border border-white/10 bg-black/10 p-4 text-sm text-slate-300">
-                No players in draft pool for this category yet.
-              </div>
-            ) : (
-              <div className="grid gap-4 sm:grid-cols-1">
-                {pool.map((item) => (
-                  <PlayerPoolCard
-                    key={item.id}
-                    item={item}
-                    selectable={mode === "captain" && item.eligible}
-                    selected={selectedEmployeeName === item.employee_name}
-                    onSelect={() => setSelectedEmployeeName(item.employee_name)}
-                  />
-                ))}
-              </div>
-            )}
+          <div className="grid gap-4 md:grid-cols-[1fr_auto]">
+            <input
+              type="number"
+              min={1}
+              max={20}
+              value={roundsInput}
+              onChange={(e) => setRoundsInput(Number(e.target.value) || 1)}
+              className="w-full rounded-2xl border border-white/10 bg-black/10 px-4 py-3 text-white outline-none"
+              placeholder="Rounds"
+            />
+            <button
+              disabled={actionLoading}
+              onClick={() =>
+                void runAction(() => importAllDraftFoldersApi(user.user_id))
+              }
+              className="rounded-2xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-3 text-sm font-bold text-white disabled:opacity-50"
+            >
+              Import
+            </button>
           </div>
-        </div>
 
-        <div className="rounded-3xl border border-white/10 bg-white/10 p-6 backdrop-blur-xl">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <div className="inline-flex rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-200">
-                Picks
-              </div>
-              <h2 className="mt-3 text-xl font-bold text-white">Draft Picks</h2>
-            </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <button
+              disabled={actionLoading}
+              onClick={() =>
+                void runAction(() =>
+                  startDraftApi(selectedCategory, roundsInput, user.user_id)
+                )
+              }
+              className="rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-3 text-sm font-bold text-white disabled:opacity-50"
+            >
+              Start
+            </button>
 
             <button
-              onClick={() => void refreshPicks(selectedCategory)}
-              className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-sm text-white hover:bg-white/15"
+              disabled={actionLoading}
+              onClick={() =>
+                void runAction(() => resetDraftApi(selectedCategory, user.user_id))
+              }
+              className="rounded-2xl bg-gradient-to-r from-red-500 to-rose-500 px-4 py-3 text-sm font-bold text-white disabled:opacity-50"
+            >
+              Reset
+            </button>
+
+            <button
+              disabled={actionLoading}
+              onClick={() => void runAction(() => undoDraftApi(user.user_id))}
+              className="rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-3 text-sm font-bold text-white disabled:opacity-50"
+            >
+              Undo
+            </button>
+          </div>
+        </section>
+      ) : null}
+
+      <section className="rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur-xl">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <h2 className="text-lg font-bold text-white">Draft Pool</h2>
+
+          <div className="flex gap-2">
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name..."
+              className="w-full rounded-2xl border border-white/10 bg-black/10 px-4 py-2.5 text-sm text-white outline-none md:w-72"
+            />
+            <button
+              onClick={() => void refreshPool(selectedCategory)}
+              className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2.5 text-sm text-white hover:bg-white/15"
             >
               Refresh
             </button>
           </div>
+        </div>
 
-          {picksError ? (
+        {mode === "captain" ? (
+          <div className="mt-4 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4">
+            <div className="text-xs uppercase tracking-[0.16em] text-cyan-200">
+              Selected Player
+            </div>
+            <div className="mt-2 text-base font-bold text-white">
+              {selectedPlayer?.employee_name || "No player selected"}
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                disabled={actionLoading || !selectedEmployeeName.trim()}
+                onClick={() =>
+                  void runAction(() =>
+                    chooseDraftPlayerApi(
+                      selectedEmployeeName.trim(),
+                      selectedCategory,
+                      user.user_id
+                    )
+                  )
+                }
+                className="rounded-2xl bg-gradient-to-r from-cyan-500 to-sky-500 px-4 py-3 text-sm font-bold text-white disabled:opacity-50"
+              >
+                Choose
+              </button>
+
+              <button
+                disabled={actionLoading}
+                onClick={() =>
+                  void runAction(() => confirmDraftPickApi(user.user_id))
+                }
+                className="rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-3 text-sm font-bold text-white disabled:opacity-50"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="mt-4">
+          {poolError ? (
             <div className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-              {picksError}
+              {poolError}
             </div>
-          ) : picksLoading ? (
+          ) : poolLoading ? (
             <div className="rounded-2xl border border-white/10 bg-black/10 p-4 text-sm text-slate-300">
-              Loading draft picks...
+              Loading pool...
             </div>
-          ) : picks.length === 0 ? (
+          ) : filteredPool.length === 0 ? (
             <div className="rounded-2xl border border-white/10 bg-black/10 p-4 text-sm text-slate-300">
-              No confirmed picks for this category yet.
+              No players found.
             </div>
           ) : (
-            <div className="space-y-5">
-              {groupedPicksByRound.map(([roundNo, roundPicks]) => (
-                <div key={roundNo} className="space-y-3">
-                  <div className="text-sm font-bold uppercase tracking-[0.16em] text-cyan-200">
-                    Round {roundNo}
-                  </div>
-
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {roundPicks
-                      .sort((a, b) => a.pick_no - b.pick_no)
-                      .map((pick, index) => (
-                        <PickCard
-                          key={`${pick.team_code}-${pick.employee_name}-${index}`}
-                          pick={pick}
-                        />
-                      ))}
-                  </div>
-                </div>
+            <div className="space-y-2">
+              {filteredPool.map((item) => (
+                <SimplePlayerRow
+                  key={item.id}
+                  item={item}
+                  selected={selectedEmployeeName === item.employee_name}
+                  selectable={mode === "captain" && item.eligible}
+                  onSelect={() => setSelectedEmployeeName(item.employee_name)}
+                />
               ))}
             </div>
           )}
         </div>
       </section>
+
+      <section className="rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur-xl">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-bold text-white">Draft Picks</h2>
+          <button
+            onClick={() => void refreshPicks(selectedCategory)}
+            className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-sm text-white hover:bg-white/15"
+          >
+            Refresh
+          </button>
+        </div>
+
+        {picksError ? (
+          <div className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            {picksError}
+          </div>
+        ) : picksLoading ? (
+          <div className="rounded-2xl border border-white/10 bg-black/10 p-4 text-sm text-slate-300">
+            Loading picks...
+          </div>
+        ) : picks.length === 0 ? (
+          <div className="rounded-2xl border border-white/10 bg-black/10 p-4 text-sm text-slate-300">
+            No picks yet.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {picks.map((pick, index) => (
+              <div
+                key={`${pick.team_code}-${pick.employee_name}-${index}`}
+                className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/10 px-4 py-3"
+              >
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold text-white">
+                    {pick.employee_name}
+                  </div>
+                  <div className="text-xs text-slate-400">{pick.team_code}</div>
+                </div>
+
+                <div className="text-xs text-amber-200">Pick #{pick.pick_no}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
 
-function StatCard({
-  label,
-  value,
-  accent = "white",
-}: {
-  label: string;
-  value: string;
-  accent?: "white" | "cyan" | "amber" | "emerald";
-}) {
-  const color =
-    accent === "cyan"
-      ? "text-cyan-300"
-      : accent === "amber"
-      ? "text-amber-300"
-      : accent === "emerald"
-      ? "text-emerald-300"
-      : "text-white";
-
+function SimpleStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur-xl">
       <div className="text-sm text-slate-300">{label}</div>
-      <div className={`mt-2 text-3xl font-black ${color}`}>{value}</div>
+      <div className="mt-2 text-2xl font-black text-white">{value}</div>
     </div>
   );
 }
@@ -590,88 +501,46 @@ function MiniInfo({ label, value }: { label: string; value: string }) {
   );
 }
 
-function PlayerPoolCard({
+function SimplePlayerRow({
   item,
-  selectable,
   selected,
+  selectable,
   onSelect,
 }: {
   item: DraftPoolItem;
-  selectable: boolean;
   selected: boolean;
+  selectable: boolean;
   onSelect: () => void;
 }) {
   return (
-    <div
-      className={`rounded-2xl border p-4 ${
+    <button
+      type="button"
+      onClick={selectable ? onSelect : undefined}
+      className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left transition ${
         selected
-          ? "border-cyan-400/30 bg-cyan-400/10"
-          : "border-white/10 bg-black/10"
-      }`}
+          ? "border-cyan-400/40 bg-cyan-400/10"
+          : "border-white/10 bg-black/10 hover:bg-white/[0.05]"
+      } ${!selectable ? "cursor-not-allowed opacity-60" : ""}`}
     >
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 items-center gap-3">
         <img
           src={normalizeMediaUrl(item.photo_url)}
           alt={item.employee_name}
-          className="h-14 w-14 rounded-full border border-white/10 bg-white object-cover"
+          className="h-12 w-12 rounded-full border border-white/10 bg-white object-cover"
         />
-
         <div className="min-w-0">
           <div className="truncate text-sm font-semibold text-white">
             {item.employee_name}
           </div>
-          <div className="mt-1 text-xs text-slate-400">{item.sport_key}</div>
-          <div className="mt-2">
-            <span
-              className={`inline-flex rounded-full px-2 py-1 text-[11px] ${
-                item.eligible
-                  ? "border border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
-                  : "border border-red-400/20 bg-red-400/10 text-red-200"
-              }`}
-            >
-              {item.eligible ? "Eligible" : "Unavailable"}
-            </span>
+          <div className="text-xs text-slate-400">
+            {item.eligible ? "Eligible" : "Unavailable"}
           </div>
         </div>
       </div>
 
-      {selectable ? (
-        <button
-          onClick={onSelect}
-          className="mt-4 w-full rounded-xl bg-gradient-to-r from-cyan-500 to-sky-500 px-3 py-2 text-xs font-semibold text-white"
-        >
-          {selected ? "Selected" : "Select Player"}
-        </button>
+      {selected ? (
+        <div className="text-sm font-semibold text-cyan-300">Selected</div>
       ) : null}
-    </div>
-  );
-}
-
-function PickCard({ pick }: { pick: DraftPickItem }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-black/10 p-4">
-      <div className="flex items-center gap-3">
-        <img
-          src={normalizeMediaUrl(pick.photo_url)}
-          alt={pick.employee_name}
-          className="h-14 w-14 rounded-full border border-white/10 bg-white object-cover"
-        />
-
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-semibold text-white">
-            {pick.employee_name}
-          </div>
-          <div className="mt-1 text-xs text-slate-400">{pick.sport_key}</div>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <span className="inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2 py-1 text-[11px] text-cyan-200">
-              {pick.team_code}
-            </span>
-            <span className="inline-flex rounded-full border border-amber-400/20 bg-amber-400/10 px-2 py-1 text-[11px] text-amber-200">
-              Pick #{pick.pick_no}
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
+    </button>
   );
 }
