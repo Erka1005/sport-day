@@ -481,7 +481,7 @@ export default function DraftShell({ mode, user }: DraftShellProps) {
                 No players in draft pool for this category yet.
               </div>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-1">
                 {pool.map((item) => (
                   <PlayerPoolCard
                     key={item.id}
