@@ -56,11 +56,13 @@ export type SetMatchResultPayload = {
 
 export type SetMatchResultResponse = string;
 
+/* ---------------- Draft Types ---------------- */
+
 export type DraftPoolItem = {
   id: number;
   employee_name: string;
   sport_key: string;
-  photo_url: string;
+  photo_url: string | null;
   eligible: boolean;
 };
 
@@ -70,16 +72,86 @@ export type DraftPickItem = {
   team_code: string;
   employee_name: string;
   sport_key: string;
-  photo_url: string;
+  photo_url: string | null;
+  picked_at?: string | null;
+  team_label?: string | null;
+  captain_username?: string | null;
 };
 
+export type DraftStatus =
+  | "idle"
+  | "running"
+  | "paused"
+  | "stopped"
+  | "completed"
+  | string;
+
 export type DraftStateResponse = {
-  status: "idle" | "running" | "completed" | string;
+  status: DraftStatus;
   rounds: number;
   current_round: number;
   current_pick_no: number;
-  current_team_code: string;
+  current_team_code: string | null;
+  sport_key: string | null;
+
+  next_sport_key?: string | null;
+  quota_per_team?: number | null;
+  total_teams?: number | null;
+  has_pending_pick?: boolean;
+
+  updated_at?: string | null;
+  completed_at?: string | null;
+};
+
+export type DraftRosterPlayer = {
+  employee_name: string;
+  photo_url: string | null;
+  pick_no: number;
+  round_no: number;
+};
+
+export type DraftRosterCategory = {
   sport_key: string;
+  quota: number;
+  filled: number;
+  remaining?: number;
+  players: DraftRosterPlayer[];
+};
+
+export type DraftRosterTeam = {
+  team_code: string;
+  team_label?: string | null;
+  categories: DraftRosterCategory[];
+};
+
+export type DraftRosterResponse = {
+  teams: DraftRosterTeam[];
+};
+
+export type DraftSummaryTeam = {
+  team_code: string;
+  filled: number;
+  remaining: number;
+};
+
+export type DraftSummaryResponse = {
+  sport_key: string;
+  status: DraftStatus;
+  quota_per_team: number;
+  total_teams: number;
+  teams: DraftSummaryTeam[];
+};
+
+export type DraftMyTeamCategory = {
+  sport_key: string;
+  quota: number;
+  filled: number;
+  players: DraftRosterPlayer[];
+};
+
+export type DraftMyTeamResponse = {
+  team_code: string;
+  categories: DraftMyTeamCategory[];
 };
 
 const API_BASE =
@@ -353,6 +425,25 @@ export async function getDraftPicksApi(sportKey: string): Promise<DraftPickItem[
   return [];
 }
 
+export async function getAllDraftPicksApi(): Promise<DraftPickItem[]> {
+  const res = await fetch(`${API_BASE}/sports-day/draft/picks/all`, {
+    method: "GET",
+  });
+
+  const data = await parseJsonSafe<
+    DraftPickItem[] | { items?: DraftPickItem[] } | { detail?: string; message?: string }
+  >(res);
+
+  if (!res.ok || !data) {
+    throw new Error(resolveErrorMessage(data, "Failed to load all draft picks."));
+  }
+
+  if (Array.isArray(data)) return data;
+  if ("items" in data && Array.isArray(data.items)) return data.items;
+
+  return [];
+}
+
 export async function getDraftStateApi(): Promise<DraftStateResponse | null> {
   const res = await fetch(`${API_BASE}/sports-day/draft/state`, {
     method: "GET",
@@ -368,6 +459,79 @@ export async function getDraftStateApi(): Promise<DraftStateResponse | null> {
 
   if (typeof data === "object" && data !== null && "status" in data) {
     return data as DraftStateResponse;
+  }
+
+  return null;
+}
+
+export async function getDraftRosterApi(): Promise<DraftRosterResponse> {
+  const res = await fetch(`${API_BASE}/sports-day/draft/roster`, {
+    method: "GET",
+  });
+
+  const data = await parseJsonSafe<
+    DraftRosterResponse | { detail?: string; message?: string }
+  >(res);
+
+  if (!res.ok || !data) {
+    throw new Error(resolveErrorMessage(data, "Failed to load draft roster."));
+  }
+
+  if (typeof data === "object" && data !== null && "teams" in data) {
+    return data as DraftRosterResponse;
+  }
+
+  return { teams: [] };
+}
+
+export async function getDraftSummaryApi(): Promise<DraftSummaryResponse | null> {
+  const res = await fetch(`${API_BASE}/sports-day/draft/summary`, {
+    method: "GET",
+  });
+
+  const data = await parseJsonSafe<
+    DraftSummaryResponse | { detail?: string; message?: string }
+  >(res);
+
+  if (!res.ok || !data) {
+    throw new Error(resolveErrorMessage(data, "Failed to load draft summary."));
+  }
+
+  if (
+    typeof data === "object" &&
+    data !== null &&
+    "sport_key" in data &&
+    "teams" in data
+  ) {
+    return data as DraftSummaryResponse;
+  }
+
+  return null;
+}
+
+export async function getMyDraftTeamApi(
+  userId: number
+): Promise<DraftMyTeamResponse | null> {
+  const res = await fetch(`${API_BASE}/sports-day/draft/my-team`, {
+    method: "GET",
+    headers: buildAuthHeaders(userId),
+  });
+
+  const data = await parseJsonSafe<
+    DraftMyTeamResponse | { detail?: string; message?: string }
+  >(res);
+
+  if (!res.ok || !data) {
+    throw new Error(resolveErrorMessage(data, "Failed to load my team draft view."));
+  }
+
+  if (
+    typeof data === "object" &&
+    data !== null &&
+    "team_code" in data &&
+    "categories" in data
+  ) {
+    return data as DraftMyTeamResponse;
   }
 
   return null;
@@ -398,6 +562,74 @@ export async function startDraftApi(
   }
 
   return typeof data === "string" ? data : "Draft started.";
+}
+
+export async function pauseDraftApi(userId: number): Promise<string> {
+  const res = await fetch(`${API_BASE}/sports-day/draft/pause`, {
+    method: "POST",
+    headers: buildAuthHeaders(userId),
+  });
+
+  const data = await parseJsonSafe<
+    string | { detail?: string; message?: string }
+  >(res);
+
+  if (!res.ok || data === null) {
+    throw new Error(resolveErrorMessage(data, "Failed to pause draft."));
+  }
+
+  return typeof data === "string" ? data : "Draft paused.";
+}
+
+export async function resumeDraftApi(userId: number): Promise<string> {
+  const res = await fetch(`${API_BASE}/sports-day/draft/resume`, {
+    method: "POST",
+    headers: buildAuthHeaders(userId),
+  });
+
+  const data = await parseJsonSafe<
+    string | { detail?: string; message?: string }
+  >(res);
+
+  if (!res.ok || data === null) {
+    throw new Error(resolveErrorMessage(data, "Failed to resume draft."));
+  }
+
+  return typeof data === "string" ? data : "Draft resumed.";
+}
+
+export async function stopDraftApi(userId: number): Promise<string> {
+  const res = await fetch(`${API_BASE}/sports-day/draft/stop`, {
+    method: "POST",
+    headers: buildAuthHeaders(userId),
+  });
+
+  const data = await parseJsonSafe<
+    string | { detail?: string; message?: string }
+  >(res);
+
+  if (!res.ok || data === null) {
+    throw new Error(resolveErrorMessage(data, "Failed to stop draft."));
+  }
+
+  return typeof data === "string" ? data : "Draft stopped.";
+}
+
+export async function finishDraftApi(userId: number): Promise<string> {
+  const res = await fetch(`${API_BASE}/sports-day/draft/finish`, {
+    method: "POST",
+    headers: buildAuthHeaders(userId),
+  });
+
+  const data = await parseJsonSafe<
+    string | { detail?: string; message?: string }
+  >(res);
+
+  if (!res.ok || data === null) {
+    throw new Error(resolveErrorMessage(data, "Failed to finish draft."));
+  }
+
+  return typeof data === "string" ? data : "Draft finished.";
 }
 
 export async function resetDraftApi(
@@ -520,4 +752,70 @@ export function isAuthenticated(): boolean {
 export function hasRole(user: AuthUser | null, roles: UserRole[]): boolean {
   if (!user) return false;
   return roles.includes(user.role);
+}
+export type TeamItem = {
+  id: number;
+  code: string;
+  name: string;
+  color_hex?: string | null;
+  captain_user_id?: number | null;
+};
+
+export async function listTeamsApi(userId?: number): Promise<TeamItem[]> {
+  const res = await fetch(`${API_BASE}/sports-day/teams`, {
+    method: "GET",
+    headers:
+      typeof userId === "number"
+        ? {
+            "X-User-Id": String(userId),
+          }
+        : undefined,
+  });
+
+  const data = await parseJsonSafe<
+    TeamItem[] | { items?: TeamItem[] } | { detail?: string; message?: string }
+  >(res);
+
+  if (!res.ok || !data) {
+    throw new Error(resolveErrorMessage(data, "Failed to load teams."));
+  }
+
+  if (Array.isArray(data)) return data;
+  if ("items" in data && Array.isArray(data.items)) return data.items;
+
+  return [];
+}
+export type RenameMyTeamPayload = {
+  name: string;
+};
+
+export async function renameMyTeamApi(
+  payload: RenameMyTeamPayload,
+  userId: number,
+): Promise<TeamItem> {
+  const res = await fetch(`${API_BASE}/sports-day/teams/my/name`, {
+    method: "PUT",
+    headers: buildAuthHeaders(userId),
+    body: JSON.stringify(payload),
+  });
+
+  const data = await parseJsonSafe<
+    TeamItem | { detail?: string; message?: string; error?: string }
+  >(res);
+
+  if (!res.ok || !data) {
+    throw new Error(resolveErrorMessage(data, "Failed to rename team."));
+  }
+
+  if (
+    typeof data === "object" &&
+    data !== null &&
+    "id" in data &&
+    "code" in data &&
+    "name" in data
+  ) {
+    return data as TeamItem;
+  }
+
+  throw new Error("Rename team response буруу бүтэцтэй байна.");
 }

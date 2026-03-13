@@ -1,47 +1,45 @@
-// pages/captain.tsx
-
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import DraftShell from "@/components/draft/draft-shell";
-import { AuthUser, getAuthUser, logout } from "@/services/api";
+import {
+  AuthUser,
+  TeamItem,
+  getAuthUser,
+  listTeamsApi,
+  logout,
+  renameMyTeamApi,
+} from "@/services/api";
 
-function getCaptainDisplayName(username: string): string {
-  const normalized = username.toLowerCase().trim();
+function getTeamColorClass(colorHex?: string | null): string {
+  if (!colorHex) return "bg-slate-400";
 
-  const map: Record<string, string> = {
-    captain1: "White Team Captain",
-    captain2: "Yellow Team Captain",
-    captain3: "Green Team Captain",
-    captain4: "Red Team Captain",
-    captain5: "Black Team Captain",
-    captain6: "Blue Team Captain",
-    captain7: "Orange Team Captain",
-    captain8: "Pink Team Captain",
-  };
+  const normalized = colorHex.toLowerCase();
 
-  return map[normalized] || username;
-}
+  if (normalized === "#ffffff") return "bg-white border border-slate-300";
+  if (normalized === "#000000" || normalized === "#111111") {
+    return "bg-black border border-white/20";
+  }
+  if (normalized === "#ff0000") return "bg-red-500";
+  if (normalized === "#0000ff") return "bg-blue-500";
+  if (normalized === "#ffff00") return "bg-yellow-400";
+  if (normalized === "#008000") return "bg-green-700";
+  if (normalized === "#ffa500") return "bg-orange-500";
+  if (normalized === "#ffc0cb") return "bg-pink-500";
 
-function getCaptainColorClass(username: string): string {
-  const normalized = username.toLowerCase().trim();
-
-  const map: Record<string, string> = {
-    captain1: "bg-white",
-    captain2: "bg-yellow-500",
-    captain3: "bg-green-800",
-    captain4: "bg-red-500",
-    captain5: "bg-black text-white border border-white/20",
-    captain6: "bg-blue-500",
-    captain7: "bg-orange-500",
-    captain8: "bg-pink-500",
-  };
-
-  return map[normalized] || "bg-slate-400";
+  return "bg-slate-400";
 }
 
 export default function CaptainPage() {
   const router = useRouter();
+
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [team, setTeam] = useState<TeamItem | null>(null);
+  const [teamLoading, setTeamLoading] = useState(true);
+
+  const [teamNameInput, setTeamNameInput] = useState("");
+  const [renameLoading, setRenameLoading] = useState(false);
+  const [renameError, setRenameError] = useState("");
+  const [renameSuccess, setRenameSuccess] = useState("");
 
   useEffect(() => {
     const currentUser = getAuthUser();
@@ -59,20 +57,88 @@ export default function CaptainPage() {
     setUser(currentUser);
   }, [router]);
 
-  const displayName = useMemo(() => {
-    if (!user) return "";
-    return getCaptainDisplayName(user.username);
+  useEffect(() => {
+    if (!user) return;
+
+    void loadCaptainTeam(user.user_id);
   }, [user]);
 
-  const colorClass = useMemo(() => {
-    if (!user) return "bg-slate-400";
-    return getCaptainColorClass(user.username);
-  }, [user]);
+  async function loadCaptainTeam(userId: number) {
+    setTeamLoading(true);
+    setRenameError("");
+
+    try {
+      const teams = await listTeamsApi(userId);
+      const myTeam =
+        teams.find((item) => item.captain_user_id === userId) || null;
+
+      setTeam(myTeam);
+      setTeamNameInput(myTeam?.name || "");
+    } catch (error) {
+      console.error("Failed to load captain team", error);
+      setTeam(null);
+    } finally {
+      setTeamLoading(false);
+    }
+  }
+
+  async function handleRenameTeam() {
+    if (!user) return;
+
+    const trimmed = teamNameInput.trim();
+
+    setRenameError("");
+    setRenameSuccess("");
+
+    if (!trimmed) {
+      setRenameError("Team name хоосон байж болохгүй.");
+      return;
+    }
+
+    if (trimmed.length < 2) {
+      setRenameError("Team name хэт богино байна.");
+      return;
+    }
+
+    if (team?.name?.trim() === trimmed) {
+      setRenameError("Шинэ нэр нь одоогийн нэртэй ижил байна.");
+      return;
+    }
+
+    setRenameLoading(true);
+
+    try {
+      const updatedTeam = await renameMyTeamApi(
+        { name: trimmed },
+        user.user_id,
+      );
+
+      setTeam(updatedTeam);
+      setTeamNameInput(updatedTeam.name);
+      setRenameSuccess("Багийн нэр амжилттай шинэчлэгдлээ.");
+    } catch (err) {
+      setRenameError(
+        err instanceof Error ? err.message : "Багийн нэр солих үед алдаа гарлаа.",
+      );
+    } finally {
+      setRenameLoading(false);
+    }
+  }
 
   function handleLogout() {
     logout();
     router.replace("/login");
   }
+
+  const displayName = useMemo(() => {
+    if (team?.name) return `${team.name} Captain`;
+    if (user?.username) return user.username;
+    return "";
+  }, [team, user]);
+
+  const colorClass = useMemo(() => {
+    return getTeamColorClass(team?.color_hex);
+  }, [team]);
 
   if (!user) {
     return (
@@ -135,11 +201,19 @@ export default function CaptainPage() {
 
                 <div className="mt-2 flex items-center gap-3">
                   <span className={`inline-block h-4 w-4 rounded-full ${colorClass}`} />
-                  <h2 className="text-xl font-bold text-white">{displayName}</h2>
+                  <h2 className="text-xl font-bold text-white">
+                    {teamLoading
+                      ? "Loading team..."
+                      : team
+                      ? `${team.name} Captain`
+                      : user.username}
+                  </h2>
                 </div>
 
                 <p className="mt-1 text-sm text-slate-300">
-                  You are viewing the captain portal for your assigned draft team.
+                  {team
+                    ? `You are viewing the captain portal for ${team.name} (${team.code})`
+                    : "You are viewing the captain portal for your assigned draft team."}
                 </p>
               </div>
 
@@ -149,7 +223,81 @@ export default function CaptainPage() {
             </div>
           </div>
 
-         <DraftShell mode="captain" user={user} />
+          <div className="mb-6 rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur-xl">
+            <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-200">
+                  Team Settings
+                </div>
+                <h2 className="mt-1 text-xl font-bold text-white">
+                  Rename My Team
+                </h2>
+                <p className="mt-1 text-sm text-slate-300">
+                  Captain өөрийн багийн нэрийг эндээс өөрчилж болно.
+                </p>
+              </div>
+
+              {team ? (
+                <div className="rounded-2xl border border-white/10 bg-black/10 px-4 py-3 text-sm text-slate-200">
+                  Current code: <span className="font-bold text-white">{team.code}</span>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-[1fr_auto]">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-200">
+                  Team Name
+                </label>
+                <input
+                  type="text"
+                  value={teamNameInput}
+                  onChange={(e) => setTeamNameInput(e.target.value)}
+                  placeholder="Enter new team name"
+                  disabled={teamLoading || renameLoading || !team}
+                  className="w-full rounded-2xl border border-white/10 bg-black/10 px-4 py-3 text-white outline-none placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60"
+                />
+              </div>
+
+              <div className="flex items-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTeamNameInput(team?.name || "");
+                    setRenameError("");
+                    setRenameSuccess("");
+                  }}
+                  disabled={renameLoading || teamLoading || !team}
+                  className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Reset
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => void handleRenameTeam()}
+                  disabled={renameLoading || teamLoading || !team}
+                  className="rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-500 px-5 py-3 text-sm font-bold text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {renameLoading ? "Saving..." : "Save Name"}
+                </button>
+              </div>
+            </div>
+
+            {renameError ? (
+              <div className="mt-4 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                {renameError}
+              </div>
+            ) : null}
+
+            {renameSuccess ? (
+              <div className="mt-4 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+                {renameSuccess}
+              </div>
+            ) : null}
+          </div>
+
+          <DraftShell mode="captain" user={user} />
         </main>
       </div>
     </div>

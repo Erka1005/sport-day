@@ -1,5 +1,3 @@
-// pages/user.tsx
-
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import DraftShell from "@/components/draft/draft-shell";
@@ -33,7 +31,7 @@ export default function UserPage() {
   if (!user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
-        Loading portal...
+        Loading public draft board...
       </div>
     );
   }
@@ -41,6 +39,7 @@ export default function UserPage() {
   return (
     <div className="min-h-screen bg-[#07111f] text-white">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.18),transparent_25%),radial-gradient(circle_at_80%_10%,rgba(16,185,129,0.14),transparent_22%),radial-gradient(circle_at_bottom,rgba(234,179,8,0.10),transparent_30%)]" />
+
       <div className="relative z-10">
         <header className="border-b border-white/10 bg-white/5 backdrop-blur-xl">
           <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
@@ -48,9 +47,11 @@ export default function UserPage() {
               <div className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">
                 MMS Sports Day
               </div>
-              <h1 className="mt-1 text-2xl font-black text-white">Public Draft Board</h1>
+              <h1 className="mt-1 text-2xl font-black text-white">
+                Public Draft Board
+              </h1>
               <p className="mt-1 text-sm text-slate-300">
-                View teams, players, and draft progress in read-only mode.
+                View live draft progress, team picks, and category-based rosters.
               </p>
             </div>
 
@@ -59,7 +60,9 @@ export default function UserPage() {
                 <div className="text-[11px] uppercase tracking-[0.16em] text-slate-300">
                   Signed in as
                 </div>
-                <div className="text-sm font-semibold text-white">{user.username}</div>
+                <div className="text-sm font-semibold text-white">
+                  {user.username}
+                </div>
               </div>
 
               <button
@@ -73,6 +76,27 @@ export default function UserPage() {
         </header>
 
         <main className="mx-auto max-w-7xl px-6 py-8">
+          <div className="mb-6 rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur-xl">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">
+                  Viewer Access
+                </div>
+                <h2 className="mt-2 text-xl font-bold text-white">
+                  Read-only Draft Monitor
+                </h2>
+                <p className="mt-1 text-sm text-slate-300">
+                  Энэ хэсэгт draft-ын явц, бүх багийн сонголт, category тус бүрийн
+                  бүрэлдэхүүн харагдана.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm font-medium text-cyan-200">
+                Public Board Active
+              </div>
+            </div>
+          </div>
+
           <DraftShell mode="viewer" user={user} />
         </main>
       </div>
