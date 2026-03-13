@@ -46,6 +46,30 @@ const CATEGORY_OPTIONS = [
 
 type CategoryKey = (typeof CATEGORY_OPTIONS)[number]["key"];
 
+type TeamMeta = {
+  name?: string | null;
+  colorHex?: string | null;
+};
+
+type DraftOrderTeam = {
+  team_code: string;
+  team_name: string;
+  position: number;
+};
+
+type DraftOrderPreviewMap = Partial<Record<CategoryKey, DraftOrderTeam[]>>;
+
+type TeamRosterCardCategoryMap = Record<
+  string,
+  Array<{
+    employee_name: string;
+    pick_no: number;
+    round_no: number;
+    photo_url: string;
+    sport_key: string;
+  }>
+>;
+
 function isCategoryKey(value: string | null | undefined): value is CategoryKey {
   if (!value) return false;
   return CATEGORY_OPTIONS.some((item) => item.key === value);
@@ -201,16 +225,16 @@ function isCategoryCompleted(
   return false;
 }
 
-type TeamRosterCardCategoryMap = Record<
-  string,
-  Array<{
-    employee_name: string;
-    pick_no: number;
-    round_no: number;
-    photo_url: string;
-    sport_key: string;
-  }>
->;
+function shuffleArray<T>(items: T[]): T[] {
+  const arr = [...items];
+
+  for (let i = arr.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+
+  return arr;
+}
 
 export default function DraftShell({ mode, user }: DraftShellProps) {
   const [viewCategory, setViewCategory] =
@@ -225,6 +249,8 @@ export default function DraftShell({ mode, user }: DraftShellProps) {
   const [summary, setSummary] = useState<DraftSummaryResponse | null>(null);
   const [myTeam, setMyTeam] = useState<DraftMyTeamResponse | null>(null);
   const [teams, setTeams] = useState<TeamItem[]>([]);
+  const [draftOrderPreview, setDraftOrderPreview] =
+    useState<DraftOrderPreviewMap>({});
 
   const [initialLoading, setInitialLoading] = useState(true);
   const [pageRefreshing, setPageRefreshing] = useState(false);
@@ -251,6 +277,14 @@ export default function DraftShell({ mode, user }: DraftShellProps) {
   const [nextCategoryPending, setNextCategoryPending] =
     useState<CategoryKey | null>(null);
 
+  const [emptyCategoryModalOpen, setEmptyCategoryModalOpen] = useState(false);
+  const [emptyHandledKey, setEmptyHandledKey] = useState<CategoryKey | null>(
+    null,
+  );
+  const [emptyNextCategory, setEmptyNextCategory] = useState<CategoryKey | null>(
+    null,
+  );
+
   const pollingRef = useRef(false);
   const autoStartInFlightRef = useRef(false);
 
@@ -268,10 +302,7 @@ export default function DraftShell({ mode, user }: DraftShellProps) {
   const captainTeamColorHex = captainTeam?.color_hex || null;
 
   const teamMetaMap = useMemo(() => {
-    const map = new Map<
-      string,
-      { name?: string | null; colorHex?: string | null }
-    >();
+    const map = new Map<string, TeamMeta>();
 
     teams.forEach((team) => {
       map.set(team.code, {
@@ -307,11 +338,24 @@ export default function DraftShell({ mode, user }: DraftShellProps) {
     return map;
   }, [teams, roster, allPicks, visiblePicks]);
 
+  const availableTeamsForOrder = useMemo(() => {
+    return teams
+      .filter((team) => !!team.code)
+      .sort((a, b) => {
+        const an = a.name?.trim() || a.code;
+        const bn = b.name?.trim() || b.code;
+        return an.localeCompare(bn);
+      });
+  }, [teams]);
+
   const isMyTurn = useMemo(() => {
     if (mode !== "captain") return false;
     if (!draftState?.current_team_code) return false;
     if (!captainTeamCode) return false;
-    return draftState.current_team_code.toUpperCase() === captainTeamCode.toUpperCase();
+    return (
+      draftState.current_team_code.toUpperCase() ===
+      captainTeamCode.toUpperCase()
+    );
   }, [mode, draftState?.current_team_code, captainTeamCode]);
 
   const filteredPool = useMemo(() => {
@@ -324,12 +368,31 @@ export default function DraftShell({ mode, user }: DraftShellProps) {
   }, [pool, search]);
 
   const selectedPlayer = useMemo(() => {
-    return pool.find((item) => item.employee_name === selectedEmployeeName) || null;
+    return (
+      pool.find((item) => item.employee_name === selectedEmployeeName) || null
+    );
   }, [pool, selectedEmployeeName]);
 
   const currentCategoryCompleted = useMemo(() => {
     return isCategoryCompleted(viewCategory, draftState, summary);
   }, [viewCategory, draftState, summary]);
+
+  const currentCategoryHasAnyPick = useMemo(() => {
+    return allPicks.some((pick) => pick.sport_key === viewCategory);
+  }, [allPicks, viewCategory]);
+
+  const currentCategoryEmpty = useMemo(() => {
+    if (poolLoading || !!poolError) return false;
+    if (currentCategoryCompleted) return false;
+
+    return pool.length === 0 && !currentCategoryHasAnyPick;
+  }, [
+    poolLoading,
+    poolError,
+    pool.length,
+    currentCategoryHasAnyPick,
+    currentCategoryCompleted,
+  ]);
 
   const refreshTeams = useCallback(async () => {
     try {
@@ -525,6 +588,73 @@ export default function DraftShell({ mode, user }: DraftShellProps) {
     }
   }
 
+  async function handleSkipEmptyCategory() {
+    const next = getNextCategoryKey(viewCategory);
+
+    if (!next) {
+      setActionError("Дараагийн draft төрөл алга.");
+      return;
+    }
+
+    setEmptyCategoryModalOpen(false);
+    setEmptyNextCategory(next);
+
+    await runAction(() => startDraftApi(next, roundsInput, user.user_id));
+    setViewCategory(next);
+  }
+
+  function generateRandomOrderForCategory(categoryKey: CategoryKey) {
+    if (availableTeamsForOrder.length === 0) {
+      setActionError("Random order гаргахын тулд team data хэрэгтэй байна.");
+      return;
+    }
+
+    const randomized = shuffleArray(availableTeamsForOrder).map((team, index) => ({
+      team_code: team.code,
+      team_name: team.name?.trim() || prettifyTeamCode(team.code),
+      position: index + 1,
+    }));
+
+    setDraftOrderPreview((prev) => ({
+      ...prev,
+      [categoryKey]: randomized,
+    }));
+
+    setActionError("");
+    setActionSuccess(`${prettyCategory(categoryKey)} random pick order үүслээ.`);
+  }
+
+  function generateRandomOrderForAllCategories() {
+    if (availableTeamsForOrder.length === 0) {
+      setActionError("Random order гаргахын тулд team data хэрэгтэй байна.");
+      return;
+    }
+
+    const next: DraftOrderPreviewMap = {};
+
+    CATEGORY_OPTIONS.forEach((category) => {
+      next[category.key] = shuffleArray(availableTeamsForOrder).map(
+        (team, index) => ({
+          team_code: team.code,
+          team_name: team.name?.trim() || prettifyTeamCode(team.code),
+          position: index + 1,
+        }),
+      );
+    });
+
+    setDraftOrderPreview(next);
+    setActionError("");
+    setActionSuccess("Бүх төрлийн random pick order үүслээ.");
+  }
+
+  function clearRandomOrderForCategory(categoryKey: CategoryKey) {
+    setDraftOrderPreview((prev) => {
+      const copy = { ...prev };
+      delete copy[categoryKey];
+      return copy;
+    });
+  }
+
   useEffect(() => {
     void (async () => {
       setInitialLoading(true);
@@ -576,6 +706,17 @@ export default function DraftShell({ mode, user }: DraftShellProps) {
     draftState?.next_sport_key,
     viewCategory,
   ]);
+
+  useEffect(() => {
+    if (mode !== "admin") return;
+    if (!currentCategoryEmpty) return;
+    if (emptyHandledKey === viewCategory) return;
+
+    const next = getNextCategoryKey(viewCategory);
+    setEmptyNextCategory(next);
+    setEmptyHandledKey(viewCategory);
+    setEmptyCategoryModalOpen(true);
+  }, [mode, currentCategoryEmpty, emptyHandledKey, viewCategory]);
 
   useEffect(() => {
     if (
@@ -660,7 +801,9 @@ export default function DraftShell({ mode, user }: DraftShellProps) {
           teamMetaMap={teamMetaMap}
         />
 
-        {summary ? <SummarySection summary={summary} teamMetaMap={teamMetaMap} /> : null}
+        {summary ? (
+          <SummarySection summary={summary} teamMetaMap={teamMetaMap} />
+        ) : null}
 
         <OverviewSection
           viewCategory={viewCategory}
@@ -679,13 +822,16 @@ export default function DraftShell({ mode, user }: DraftShellProps) {
         />
 
         {actionError ? <FeedbackBanner tone="error" message={actionError} /> : null}
-        {actionSuccess ? <FeedbackBanner tone="success" message={actionSuccess} /> : null}
+        {actionSuccess ? (
+          <FeedbackBanner tone="success" message={actionSuccess} />
+        ) : null}
 
         {mode === "admin" ? (
           <AdminControlsSection
             actionLoading={actionLoading}
             roundsInput={roundsInput}
             viewCategory={viewCategory}
+            isEmptyCategory={currentCategoryEmpty}
             onRoundsChange={setRoundsInput}
             onImport={() =>
               void runAction(() => importAllDraftFoldersApi(user.user_id))
@@ -711,6 +857,18 @@ export default function DraftShell({ mode, user }: DraftShellProps) {
                 startDraftApi(next, roundsInput, user.user_id),
               );
             }}
+            onSkipEmpty={() => void handleSkipEmptyCategory()}
+          />
+        ) : null}
+
+        {mode === "admin" ? (
+          <RandomDraftOrderSection
+            viewCategory={viewCategory}
+            orders={draftOrderPreview}
+            teamMetaMap={teamMetaMap}
+            onGenerateCurrent={() => generateRandomOrderForCategory(viewCategory)}
+            onGenerateAll={generateRandomOrderForAllCategories}
+            onClearCurrent={() => clearRandomOrderForCategory(viewCategory)}
           />
         ) : null}
 
@@ -796,6 +954,15 @@ export default function DraftShell({ mode, user }: DraftShellProps) {
           onGoNext={handleGoNextManually}
         />
       ) : null}
+
+      {emptyCategoryModalOpen ? (
+        <EmptyCategoryModal
+          currentCategory={prettyCategory(viewCategory)}
+          nextCategory={prettyCategory(emptyNextCategory)}
+          onClose={() => setEmptyCategoryModalOpen(false)}
+          onSkip={() => void handleSkipEmptyCategory()}
+        />
+      ) : null}
     </>
   );
 }
@@ -809,7 +976,7 @@ function TopStatsSection({
   draftState: DraftStateResponse | null;
   activeCategory: CategoryKey | null;
   viewCategory: CategoryKey;
-  teamMetaMap: Map<string, { name?: string | null; colorHex?: string | null }>;
+  teamMetaMap: Map<string, TeamMeta>;
 }) {
   return (
     <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -837,7 +1004,7 @@ function SummarySection({
   teamMetaMap,
 }: {
   summary: DraftSummaryResponse;
-  teamMetaMap: Map<string, { name?: string | null; colorHex?: string | null }>;
+  teamMetaMap: Map<string, TeamMeta>;
 }) {
   return (
     <section className="rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur-xl">
@@ -908,7 +1075,7 @@ function OverviewSection({
   autoStartNext: boolean;
   mode: DraftMode;
   isMyTurn: boolean;
-  teamMetaMap: Map<string, { name?: string | null; colorHex?: string | null }>;
+  teamMetaMap: Map<string, TeamMeta>;
   onCategoryChange: (value: CategoryKey) => void;
   onToggleAutoRefresh: () => void;
   onRefresh: () => void;
@@ -1028,6 +1195,7 @@ function AdminControlsSection({
   actionLoading,
   roundsInput,
   viewCategory,
+  isEmptyCategory,
   onRoundsChange,
   onImport,
   onStart,
@@ -1038,10 +1206,12 @@ function AdminControlsSection({
   onUndo,
   onReset,
   onStartNext,
+  onSkipEmpty,
 }: {
   actionLoading: boolean;
   roundsInput: number;
   viewCategory: CategoryKey;
+  isEmptyCategory: boolean;
   onRoundsChange: (value: number) => void;
   onImport: () => void;
   onStart: () => void;
@@ -1052,6 +1222,7 @@ function AdminControlsSection({
   onUndo: () => void;
   onReset: () => void;
   onStartNext: () => void;
+  onSkipEmpty: () => void;
 }) {
   return (
     <section className="space-y-4 rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur-xl">
@@ -1126,7 +1297,7 @@ function AdminControlsSection({
         </button>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-3">
         <button
           disabled={actionLoading}
           onClick={onReset}
@@ -1142,6 +1313,172 @@ function AdminControlsSection({
         >
           Start Next Category
         </button>
+
+        <button
+          disabled={actionLoading || !isEmptyCategory || !getNextCategoryKey(viewCategory)}
+          onClick={onSkipEmpty}
+          className="rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-3 text-sm font-bold text-white disabled:opacity-50"
+        >
+          Skip Empty Category
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function RandomDraftOrderSection({
+  viewCategory,
+  orders,
+  teamMetaMap,
+  onGenerateCurrent,
+  onGenerateAll,
+  onClearCurrent,
+}: {
+  viewCategory: CategoryKey;
+  orders: DraftOrderPreviewMap;
+  teamMetaMap: Map<string, TeamMeta>;
+  onGenerateCurrent: () => void;
+  onGenerateAll: () => void;
+  onClearCurrent: () => void;
+}) {
+  const currentOrder = orders[viewCategory] || [];
+
+  return (
+    <section className="rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur-xl">
+      <div className="mb-4 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-fuchsia-200">
+            Draft Order Planner
+          </div>
+          <h2 className="mt-1 text-lg font-bold text-white">
+            Random Pick Order Preview
+          </h2>
+          <p className="mt-1 text-sm text-slate-300">
+            Энэ хэсэг нь frontend preview. Бодит draft order-ийг backend дээр хадгалах хэрэгтэй.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={onGenerateCurrent}
+            className="rounded-2xl bg-gradient-to-r from-fuchsia-500 to-violet-500 px-4 py-2.5 text-sm font-bold text-white"
+          >
+            Generate Current Sport
+          </button>
+
+          <button
+            onClick={onGenerateAll}
+            className="rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-500 px-4 py-2.5 text-sm font-bold text-white"
+          >
+            Generate All Sports
+          </button>
+
+          <button
+            onClick={onClearCurrent}
+            className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/15"
+          >
+            Clear Current
+          </button>
+        </div>
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-2">
+        <div className="rounded-2xl border border-white/10 bg-black/10 p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <div className="text-sm font-bold text-white">
+                {prettyCategory(viewCategory)}
+              </div>
+              <div className="mt-1 text-xs text-slate-400">
+                Randomized order preview
+              </div>
+            </div>
+
+            <div className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs text-slate-200">
+              {currentOrder.length} teams
+            </div>
+          </div>
+
+          {currentOrder.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-white/10 px-4 py-4 text-sm text-slate-400">
+              Одоогоор random order үүсээгүй байна.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {currentOrder.map((item) => {
+                const meta = getTeamPresentation({
+                  teamCode: item.team_code,
+                  teamName: item.team_name || teamMetaMap.get(item.team_code)?.name,
+                  colorHex: teamMetaMap.get(item.team_code)?.colorHex,
+                });
+
+                return (
+                  <div
+                    key={`${viewCategory}-${item.team_code}-${item.position}`}
+                    className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-sm font-black text-white">
+                        {item.position}
+                      </div>
+
+                      <div>
+                        <div className="text-sm font-semibold text-white">
+                          {meta.name}
+                        </div>
+                        <div className="mt-1 text-xs text-slate-400">
+                          Code: {item.team_code}
+                        </div>
+                      </div>
+                    </div>
+
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-bold ${meta.badgeClass}`}
+                    >
+                      Pick #{item.position}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-black/10 p-4">
+          <div className="mb-3 text-sm font-bold text-white">
+            All Sports Preview
+          </div>
+
+          <div className="space-y-3">
+            {CATEGORY_OPTIONS.map((category) => {
+              const order = orders[category.key] || [];
+
+              return (
+                <div
+                  key={category.key}
+                  className="rounded-xl border border-white/10 bg-white/[0.03] p-3"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-sm font-semibold text-white">
+                      {category.label}
+                    </div>
+                    <div className="text-xs text-slate-400">
+                      {order.length ? `${order.length} teams ready` : "Not generated"}
+                    </div>
+                  </div>
+
+                  {order.length > 0 ? (
+                    <div className="mt-2 text-xs text-slate-300">
+                      {order
+                        .map((team) => `${team.position}. ${team.team_name}`)
+                        .join("  •  ")}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -1345,7 +1682,7 @@ function TeamBoardSection({
   teamMetaMap,
 }: {
   roster: DraftRosterResponse | null;
-  teamMetaMap: Map<string, { name?: string | null; colorHex?: string | null }>;
+  teamMetaMap: Map<string, TeamMeta>;
 }) {
   return (
     <section className="rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur-xl">
@@ -1419,7 +1756,7 @@ function DraftPicksSection({
   picksError: string;
   picksLoading: boolean;
   visiblePicks: DraftPickItem[];
-  teamMetaMap: Map<string, { name?: string | null; colorHex?: string | null }>;
+  teamMetaMap: Map<string, TeamMeta>;
   onRefresh: () => void;
 }) {
   return (
@@ -1816,6 +2153,61 @@ function CompletionModal({
               className="rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-500 px-4 py-2.5 text-sm font-semibold text-white"
             >
               Start Next Draft
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EmptyCategoryModal({
+  currentCategory,
+  nextCategory,
+  onClose,
+  onSkip,
+}: {
+  currentCategory: string;
+  nextCategory: string;
+  onClose: () => void;
+  onSkip: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#0b1728] p-6 text-white shadow-2xl">
+        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-200">
+          Empty Category
+        </div>
+
+        <h3 className="mt-2 text-2xl font-black">
+          {currentCategory} дээр тоглогч алга
+        </h3>
+
+        <p className="mt-3 text-sm leading-6 text-slate-300">
+          Энэ төрөл дээр draft хийх тоглогч байхгүй байна.{" "}
+          {nextCategory !== "-"
+            ? `${nextCategory} руу шууд шилжүүлэх үү?`
+            : "Дараагийн төрөл алга."}
+        </p>
+
+        <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+          Тоглогчгүй category-г skip хийгээд дараагийн sport draft эхлүүлж болно.
+        </div>
+
+        <div className="mt-6 flex flex-wrap justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/15"
+          >
+            Close
+          </button>
+
+          {nextCategory !== "-" ? (
+            <button
+              onClick={onSkip}
+              className="rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-2.5 text-sm font-semibold text-white"
+            >
+              Skip To Next Draft
             </button>
           ) : null}
         </div>

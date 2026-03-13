@@ -819,3 +819,14 @@ export async function renameMyTeamApi(
 
   throw new Error("Rename team response буруу бүтэцтэй байна.");
 }
+export type DraftOrderTeam = {
+  team_code: string;
+  team_name: string;
+  position: number;
+};
+
+export type DraftOrderItem = {
+  sport_key: string;
+  snake: boolean;
+  teams: DraftOrderTeam[];
+};
