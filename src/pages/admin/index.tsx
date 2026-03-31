@@ -1,5 +1,3 @@
-// pages/admin.tsx
-
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import AdminLayout from "@/components/admin/admin-layout";
@@ -10,18 +8,20 @@ import MatchFormCard from "@/components/admin/match-form-card";
 import MatchListCard from "@/components/admin/match-list-card";
 import ResultFormCard from "@/components/admin/result-form-card";
 import ResultHistoryCard from "@/components/admin/result-history-card";
-import DraftShell from "@/components/draft/draft-shell";
+import RosterManagementCard from "@/components/admin/roster-management-card";
 import {
   AuthUser,
   CreateMatchPayload,
   CreateSportPayload,
   MatchItem,
   SportItem,
+  TeamItem,
   createMatchApi,
   createSportApi,
   getAuthUser,
   listMatchesApi,
   listSportsApi,
+  listTeamsApi,
   setMatchResultApi,
 } from "@/services/api";
 
@@ -48,6 +48,10 @@ export default function AdminPage() {
   const [matchesLoading, setMatchesLoading] = useState(true);
   const [matchesError, setMatchesError] = useState("");
 
+  const [teams, setTeams] = useState<TeamItem[]>([]);
+  const [teamsLoading, setTeamsLoading] = useState(true);
+  const [teamsError, setTeamsError] = useState("");
+
   const [resultHistory, setResultHistory] = useState<ResultHistoryItem[]>([]);
 
   useEffect(() => {
@@ -68,7 +72,11 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!user) return;
-    void Promise.all([loadSports(user.user_id), loadMatches(user.user_id)]);
+    void Promise.all([
+      loadSports(user.user_id),
+      loadMatches(user.user_id),
+      loadTeams(user.user_id),
+    ]);
   }, [user]);
 
   async function loadSports(userId: number) {
@@ -100,6 +108,22 @@ export default function AdminPage() {
       setMatchesError(message);
     } finally {
       setMatchesLoading(false);
+    }
+  }
+
+  async function loadTeams(userId: number) {
+    setTeamsLoading(true);
+    setTeamsError("");
+
+    try {
+      const items = await listTeamsApi(userId);
+      setTeams(items);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to load teams.";
+      setTeamsError(message);
+    } finally {
+      setTeamsLoading(false);
     }
   }
 
@@ -179,11 +203,15 @@ export default function AdminPage() {
             <StatCard label="Configured Sports" value={String(sports.length)} />
             <StatCard label="Scheduled Matches" value={String(matches.length)} />
             <StatCard
+              label="Teams"
+              value={teamsLoading ? "..." : String(teams.length)}
+              accent="cyan"
+            />
+            <StatCard
               label="Submitted Results"
               value={String(resultHistory.length)}
               accent="emerald"
             />
-            <StatCard label="Access Level" value="Admin" accent="amber" />
           </div>
 
           <div className="grid gap-4 xl:grid-cols-2">
@@ -196,14 +224,20 @@ export default function AdminPage() {
               desc="Create matches and review the current event schedule."
             />
             <InfoCard
-              title="Result Submission"
-              desc="Submit match scores and keep track of recent result updates."
+              title="Roster Management"
+              desc="Bulk add, bulk set, bulk remove and delete team members."
             />
             <InfoCard
-              title="Draft Control"
-              desc="This section is reserved for draft start and draft controls."
+              title="Draft"
+              desc="Draft panel is temporarily disabled."
             />
           </div>
+
+          {teamsError ? (
+            <div className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+              {teamsError}
+            </div>
+          ) : null}
         </section>
       )}
 
@@ -243,7 +277,26 @@ export default function AdminPage() {
         </section>
       )}
 
-   {activeSection === "draft" && <DraftShell mode="admin" user={user} />}
+      {activeSection === "roster" && (
+        <section>
+          <RosterManagementCard
+            userId={user.user_id}
+            teams={teams}
+            sports={sports}
+          />
+        </section>
+      )}
+
+      {activeSection === "draft" && (
+        <section>
+          <div className="rounded-3xl border border-dashed border-amber-400/20 bg-amber-500/10 p-8 backdrop-blur-xl">
+            <h3 className="text-xl font-bold text-white">Draft disabled</h3>
+            <p className="mt-2 text-sm text-slate-300">
+              Одоогоор roster member management идэвхтэй байгаа тул draft panel-ийг түр унтраасан.
+            </p>
+          </div>
+        </section>
+      )}
     </AdminLayout>
   );
 }
@@ -279,15 +332,6 @@ function InfoCard({ title, desc }: { title: string; desc: string }) {
     <div className="rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur-xl">
       <h3 className="text-lg font-bold text-white">{title}</h3>
       <p className="mt-2 text-sm leading-6 text-slate-300">{desc}</p>
-    </div>
-  );
-}
-
-function PlaceholderCard({ title, desc }: { title: string; desc: string }) {
-  return (
-    <div className="rounded-3xl border border-dashed border-white/15 bg-white/5 p-8 backdrop-blur-xl">
-      <h3 className="text-xl font-bold text-white">{title}</h3>
-      <p className="mt-3 text-sm leading-6 text-slate-300">{desc}</p>
     </div>
   );
 }

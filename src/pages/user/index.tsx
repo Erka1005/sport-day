@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import DraftShell from "@/components/draft/draft-shell";
 import { AuthUser, getAuthUser, logout } from "@/services/api";
 
 export default function UserPage() {
@@ -31,7 +30,7 @@ export default function UserPage() {
   if (!user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
-        Loading public draft board...
+        Loading public portal...
       </div>
     );
   }
@@ -48,10 +47,10 @@ export default function UserPage() {
                 MMS Sports Day
               </div>
               <h1 className="mt-1 text-2xl font-black text-white">
-                Public Draft Board
+                Public Event Portal
               </h1>
               <p className="mt-1 text-sm text-slate-300">
-                View live draft progress, team picks, and category-based rosters.
+                Public viewer mode for general event information.
               </p>
             </div>
 
@@ -83,11 +82,11 @@ export default function UserPage() {
                   Viewer Access
                 </div>
                 <h2 className="mt-2 text-xl font-bold text-white">
-                  Read-only Draft Monitor
+                  Read-only Event Monitor
                 </h2>
                 <p className="mt-1 text-sm text-slate-300">
-                  Энэ хэсэгт draft-ын явц, бүх багийн сонголт, category тус бүрийн
-                  бүрэлдэхүүн харагдана.
+                  Draft хэсэг түр идэвхгүй байна. Дараагийн шатанд schedule,
+                  standings, event info-уудыг энд холбоно.
                 </p>
               </div>
 
@@ -97,7 +96,18 @@ export default function UserPage() {
             </div>
           </div>
 
-          <DraftShell mode="viewer" user={user} />
+          <div className="rounded-3xl border border-dashed border-amber-400/20 bg-amber-500/10 p-8 backdrop-blur-xl">
+            <div className="inline-flex rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-200">
+              Temporary State
+            </div>
+            <h3 className="mt-4 text-2xl font-bold text-white">
+              Draft Viewer Disabled
+            </h3>
+            <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">
+              Түр хугацаанд public draft board-г унтраасан. Одоогоор roster/member
+              integration хийгдэж байна.
+            </p>
+          </div>
         </main>
       </div>
     </div>

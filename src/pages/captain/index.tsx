@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
-import DraftShell from "@/components/draft/draft-shell";
+import MyTeamCard from "@/components/captain/my-team-card";
 import {
   AuthUser,
   TeamItem,
@@ -59,7 +59,6 @@ export default function CaptainPage() {
 
   useEffect(() => {
     if (!user) return;
-
     void loadCaptainTeam(user.user_id);
   }, [user]);
 
@@ -108,17 +107,14 @@ export default function CaptainPage() {
     setRenameLoading(true);
 
     try {
-      const updatedTeam = await renameMyTeamApi(
-        { name: trimmed },
-        user.user_id,
-      );
+      const updatedTeam = await renameMyTeamApi({ name: trimmed }, user.user_id);
 
       setTeam(updatedTeam);
       setTeamNameInput(updatedTeam.name);
       setRenameSuccess("Багийн нэр амжилттай шинэчлэгдлээ.");
     } catch (err) {
       setRenameError(
-        err instanceof Error ? err.message : "Багийн нэр солих үед алдаа гарлаа.",
+        err instanceof Error ? err.message : "Багийн нэр солих үед алдаа гарлаа."
       );
     } finally {
       setRenameLoading(false);
@@ -160,10 +156,10 @@ export default function CaptainPage() {
                 MMS Sports Day
               </div>
               <h1 className="mt-1 text-2xl font-black text-white">
-                Captain Draft Hub
+                Captain Team Hub
               </h1>
               <p className="mt-1 text-sm text-slate-300">
-                Manage your draft actions and confirm player picks.
+                Team settings болон өөрийн багийн roster мэдээлэл.
               </p>
             </div>
 
@@ -213,7 +209,7 @@ export default function CaptainPage() {
                 <p className="mt-1 text-sm text-slate-300">
                   {team
                     ? `You are viewing the captain portal for ${team.name} (${team.code})`
-                    : "You are viewing the captain portal for your assigned draft team."}
+                    : "You are viewing the captain portal for your assigned team."}
                 </p>
               </div>
 
@@ -297,7 +293,7 @@ export default function CaptainPage() {
             ) : null}
           </div>
 
-          <DraftShell mode="captain" user={user} />
+          <MyTeamCard userId={user.user_id} />
         </main>
       </div>
     </div>

@@ -1,6 +1,10 @@
-// components/admin/admin-sidebar.tsx
-
-export type AdminSection = "overview" | "sports" | "schedule" | "results" | "draft";
+export type AdminSection =
+  | "overview"
+  | "sports"
+  | "schedule"
+  | "results"
+  | "roster"
+  | "draft";
 
 type AdminSidebarProps = {
   activeSection: AdminSection;
@@ -29,9 +33,14 @@ const items: { key: AdminSection; label: string; desc: string }[] = [
     desc: "Submit match results",
   },
   {
+    key: "roster",
+    label: "Roster",
+    desc: "Manage team members",
+  },
+  {
     key: "draft",
     label: "Draft",
-    desc: "Draft controls",
+    desc: "Temporarily disabled",
   },
 ];
 

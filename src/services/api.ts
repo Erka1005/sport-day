@@ -1,5 +1,3 @@
-// services/api.ts
-
 export type UserRole = "user" | "admin" | "captain";
 
 export type LoginPayload = {
@@ -93,12 +91,10 @@ export type DraftStateResponse = {
   current_pick_no: number;
   current_team_code: string | null;
   sport_key: string | null;
-
   next_sport_key?: string | null;
   quota_per_team?: number | null;
   total_teams?: number | null;
   has_pending_pick?: boolean;
-
   updated_at?: string | null;
   completed_at?: string | null;
 };
@@ -106,8 +102,9 @@ export type DraftStateResponse = {
 export type DraftRosterPlayer = {
   employee_name: string;
   photo_url: string | null;
-  pick_no: number;
-  round_no: number;
+  pick_no?: number;
+  round_no?: number;
+  is_leader?: boolean;
 };
 
 export type DraftRosterCategory = {
@@ -144,14 +141,99 @@ export type DraftSummaryResponse = {
 
 export type DraftMyTeamCategory = {
   sport_key: string;
-  quota: number;
-  filled: number;
+  quota?: number;
+  filled?: number;
   players: DraftRosterPlayer[];
 };
 
 export type DraftMyTeamResponse = {
   team_code: string;
   categories: DraftMyTeamCategory[];
+};
+
+/* ---------------- Team / Member Types ---------------- */
+
+export type TeamItem = {
+  id: number;
+  code: string;
+  name: string;
+  color_hex?: string | null;
+  captain_user_id?: number | null;
+};
+
+export type RenameMyTeamPayload = {
+  name: string;
+};
+
+export type TeamMemberItem = {
+  id: number;
+  team_code?: string;
+  employee_name: string;
+  sport_key?: string;
+  leader: boolean;
+  note?: string | null;
+  photo_url: string | null;
+};
+
+export type TeamMemberListResponse =
+  | TeamMemberItem[]
+  | { items?: TeamMemberItem[] }
+  | { players?: TeamMemberItem[] };
+
+export type BulkMemberInput =
+  | string
+  | {
+      employee_name: string;
+      leader?: boolean;
+      note?: string;
+      photo_url?: string;
+    };
+
+export type BulkAddMembersPayload = {
+  team_code: string;
+  sport_key: string;
+  members: BulkMemberInput[];
+};
+
+export type BulkSetMembersPayload = {
+  team_code: string;
+  sport_key: string;
+  members: BulkMemberInput[];
+};
+
+export type BulkRemoveMembersPayload = {
+  team_code: string;
+  sport_key: string;
+  employee_names: string[];
+};
+
+export type UpdateMemberPayload = {
+  employee_name: string;
+  sport_key: string;
+  leader?: boolean;
+  note?: string;
+  photo?: File | null;
+};
+
+export type StandingItem = {
+  team_id: number;
+  team_code: string;
+  wins: number;
+  losses: number;
+  draws: number;
+  points: number;
+};
+
+export type DraftOrderTeam = {
+  team_code: string;
+  team_name: string;
+  position: number;
+};
+
+export type DraftOrderItem = {
+  sport_key: string;
+  snake: boolean;
+  teams: DraftOrderTeam[];
 };
 
 const API_BASE =
@@ -182,7 +264,6 @@ function buildAuthHeaders(userId?: number): HeadersInit {
 
 function resolveErrorMessage(data: unknown, fallback: string): string {
   if (!data) return fallback;
-
   if (typeof data === "string") return data;
 
   if (typeof data === "object" && data !== null) {
@@ -291,6 +372,64 @@ export async function listSportsApi(userId?: number): Promise<SportItem[]> {
   return [];
 }
 
+/* ---------------- Teams ---------------- */
+
+export async function listTeamsApi(userId?: number): Promise<TeamItem[]> {
+  const res = await fetch(`${API_BASE}/sports-day/teams`, {
+    method: "GET",
+    headers:
+      typeof userId === "number"
+        ? {
+            "X-User-Id": String(userId),
+          }
+        : undefined,
+  });
+
+  const data = await parseJsonSafe<
+    TeamItem[] | { items?: TeamItem[] } | { detail?: string; message?: string }
+  >(res);
+
+  if (!res.ok || !data) {
+    throw new Error(resolveErrorMessage(data, "Failed to load teams."));
+  }
+
+  if (Array.isArray(data)) return data;
+  if ("items" in data && Array.isArray(data.items)) return data.items;
+
+  return [];
+}
+
+export async function renameMyTeamApi(
+  payload: RenameMyTeamPayload,
+  userId: number
+): Promise<TeamItem> {
+  const res = await fetch(`${API_BASE}/sports-day/teams/my/name`, {
+    method: "PUT",
+    headers: buildAuthHeaders(userId),
+    body: JSON.stringify(payload),
+  });
+
+  const data = await parseJsonSafe<
+    TeamItem | { detail?: string; message?: string; error?: string }
+  >(res);
+
+  if (!res.ok || !data) {
+    throw new Error(resolveErrorMessage(data, "Failed to rename team."));
+  }
+
+  if (
+    typeof data === "object" &&
+    data !== null &&
+    "id" in data &&
+    "code" in data &&
+    "name" in data
+  ) {
+    return data as TeamItem;
+  }
+
+  throw new Error("Rename team response буруу бүтэцтэй байна.");
+}
+
 /* ---------------- Matches ---------------- */
 
 export async function createMatchApi(
@@ -360,6 +499,202 @@ export async function setMatchResultApi(
 
   if (typeof data === "string") return data;
   return "Result submitted successfully.";
+}
+
+/* ---------------- Standings ---------------- */
+
+export async function listStandingsApi(userId?: number): Promise<StandingItem[]> {
+  const res = await fetch(`${API_BASE}/sports-day/standings`, {
+    method: "GET",
+    headers:
+      typeof userId === "number"
+        ? {
+            "X-User-Id": String(userId),
+          }
+        : undefined,
+  });
+
+  const data = await parseJsonSafe<
+    StandingItem[] | { items?: StandingItem[] } | { detail?: string; message?: string }
+  >(res);
+
+  if (!res.ok || !data) {
+    throw new Error(resolveErrorMessage(data, "Failed to load standings."));
+  }
+
+  if (Array.isArray(data)) return data;
+  if ("items" in data && Array.isArray(data.items)) return data.items;
+
+  return [];
+}
+
+/* ---------------- Members / Roster ---------------- */
+
+export async function listMembersApi(params: {
+  team_code?: string;
+  sport_key?: string;
+  userId?: number;
+}): Promise<TeamMemberItem[]> {
+  const res = await fetch(
+    withQuery("/sports-day/member", {
+      team_code: params.team_code,
+      sport_key: params.sport_key,
+    }),
+    {
+      method: "GET",
+      headers:
+        typeof params.userId === "number"
+          ? {
+              "X-User-Id": String(params.userId),
+            }
+          : undefined,
+    }
+  );
+
+  const data = await parseJsonSafe<
+    TeamMemberListResponse | { detail?: string; message?: string }
+  >(res);
+
+  if (!res.ok || !data) {
+    throw new Error(resolveErrorMessage(data, "Failed to load roster members."));
+  }
+
+  if (Array.isArray(data)) return data;
+  if ("items" in data && Array.isArray(data.items)) return data.items;
+  if ("players" in data && Array.isArray(data.players)) return data.players;
+
+  return [];
+}
+
+export async function bulkAddMembersApi(
+  payload: BulkAddMembersPayload,
+  userId: number
+): Promise<string> {
+  const res = await fetch(`${API_BASE}/sports-day/member/bulk-add`, {
+    method: "POST",
+    headers: buildAuthHeaders(userId),
+    body: JSON.stringify(payload),
+  });
+
+  const data = await parseJsonSafe<
+    string | { detail?: string; message?: string }
+  >(res);
+
+  if (!res.ok || data === null) {
+    throw new Error(resolveErrorMessage(data, "Failed to add members."));
+  }
+
+  return typeof data === "string" ? data : "Members added successfully.";
+}
+
+export async function bulkSetMembersApi(
+  payload: BulkSetMembersPayload,
+  userId: number
+): Promise<string> {
+  const res = await fetch(`${API_BASE}/sports-day/member/bulk-set`, {
+    method: "POST",
+    headers: buildAuthHeaders(userId),
+    body: JSON.stringify(payload),
+  });
+
+  const data = await parseJsonSafe<
+    string | { detail?: string; message?: string }
+  >(res);
+
+  if (!res.ok || data === null) {
+    throw new Error(resolveErrorMessage(data, "Failed to set members."));
+  }
+
+  return typeof data === "string" ? data : "Members set successfully.";
+}
+
+export async function bulkRemoveMembersApi(
+  payload: BulkRemoveMembersPayload,
+  userId: number
+): Promise<string> {
+  const res = await fetch(`${API_BASE}/sports-day/member/bulk-remove`, {
+    method: "POST",
+    headers: buildAuthHeaders(userId),
+    body: JSON.stringify(payload),
+  });
+
+  const data = await parseJsonSafe<
+    string | { detail?: string; message?: string }
+  >(res);
+
+  if (!res.ok || data === null) {
+    throw new Error(resolveErrorMessage(data, "Failed to remove members."));
+  }
+
+  return typeof data === "string" ? data : "Members removed successfully.";
+}
+
+export async function updateMemberApi(
+  memberId: number,
+  payload: UpdateMemberPayload,
+  userId: number
+): Promise<TeamMemberItem> {
+  const form = new FormData();
+  form.append("employee_name", payload.employee_name);
+  form.append("sport_key", payload.sport_key);
+
+  if (typeof payload.leader === "boolean") {
+    form.append("leader", String(payload.leader));
+  }
+
+  if (payload.note !== undefined) {
+    form.append("note", payload.note);
+  }
+
+  if (payload.photo) {
+    form.append("photo", payload.photo);
+  }
+
+  const res = await fetch(`${API_BASE}/sports-day/member/${memberId}`, {
+    method: "PUT",
+    headers:
+      typeof userId === "number"
+        ? {
+            "X-User-Id": String(userId),
+          }
+        : undefined,
+    body: form,
+  });
+
+  const data = await parseJsonSafe<
+    TeamMemberItem | { detail?: string; message?: string }
+  >(res);
+
+  if (!res.ok || !data) {
+    throw new Error(resolveErrorMessage(data, "Failed to update member."));
+  }
+
+  return data as TeamMemberItem;
+}
+
+export async function deleteMemberApi(
+  memberId: number,
+  userId: number
+): Promise<string> {
+  const res = await fetch(`${API_BASE}/sports-day/member/${memberId}`, {
+    method: "DELETE",
+    headers:
+      typeof userId === "number"
+        ? {
+            "X-User-Id": String(userId),
+          }
+        : undefined,
+  });
+
+  const data = await parseJsonSafe<
+    string | { detail?: string; message?: string }
+  >(res);
+
+  if (!res.ok || data === null) {
+    throw new Error(resolveErrorMessage(data, "Failed to delete member."));
+  }
+
+  return typeof data === "string" ? data : "Member deleted successfully.";
 }
 
 /* ---------------- Draft ---------------- */
@@ -753,80 +1088,3 @@ export function hasRole(user: AuthUser | null, roles: UserRole[]): boolean {
   if (!user) return false;
   return roles.includes(user.role);
 }
-export type TeamItem = {
-  id: number;
-  code: string;
-  name: string;
-  color_hex?: string | null;
-  captain_user_id?: number | null;
-};
-
-export async function listTeamsApi(userId?: number): Promise<TeamItem[]> {
-  const res = await fetch(`${API_BASE}/sports-day/teams`, {
-    method: "GET",
-    headers:
-      typeof userId === "number"
-        ? {
-            "X-User-Id": String(userId),
-          }
-        : undefined,
-  });
-
-  const data = await parseJsonSafe<
-    TeamItem[] | { items?: TeamItem[] } | { detail?: string; message?: string }
-  >(res);
-
-  if (!res.ok || !data) {
-    throw new Error(resolveErrorMessage(data, "Failed to load teams."));
-  }
-
-  if (Array.isArray(data)) return data;
-  if ("items" in data && Array.isArray(data.items)) return data.items;
-
-  return [];
-}
-export type RenameMyTeamPayload = {
-  name: string;
-};
-
-export async function renameMyTeamApi(
-  payload: RenameMyTeamPayload,
-  userId: number,
-): Promise<TeamItem> {
-  const res = await fetch(`${API_BASE}/sports-day/teams/my/name`, {
-    method: "PUT",
-    headers: buildAuthHeaders(userId),
-    body: JSON.stringify(payload),
-  });
-
-  const data = await parseJsonSafe<
-    TeamItem | { detail?: string; message?: string; error?: string }
-  >(res);
-
-  if (!res.ok || !data) {
-    throw new Error(resolveErrorMessage(data, "Failed to rename team."));
-  }
-
-  if (
-    typeof data === "object" &&
-    data !== null &&
-    "id" in data &&
-    "code" in data &&
-    "name" in data
-  ) {
-    return data as TeamItem;
-  }
-
-  throw new Error("Rename team response буруу бүтэцтэй байна.");
-}
-export type DraftOrderTeam = {
-  team_code: string;
-  team_name: string;
-  position: number;
-};
-
-export type DraftOrderItem = {
-  sport_key: string;
-  snake: boolean;
-  teams: DraftOrderTeam[];
-};

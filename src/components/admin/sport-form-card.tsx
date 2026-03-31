@@ -1,5 +1,3 @@
-// components/admin/sport-form-card.tsx
-
 import { FormEvent, useState } from "react";
 import { CreateSportPayload } from "@/services/api";
 
