@@ -17,23 +17,21 @@ import {
   renameMyTeamApi,
 } from "@/services/api";
 
-function getTeamColorClass(colorHex?: string | null): string {
-  if (!colorHex) return "bg-slate-400";
-
-  const normalized = colorHex.toLowerCase();
-
-  if (normalized === "#ffffff") return "bg-white border border-slate-300";
-  if (normalized === "#000000" || normalized === "#111111") {
-    return "bg-black border border-white/20";
+/**
+ * ✅ backend color_hex шууд ашиглана
+ */
+function getTeamStyle(colorHex?: string | null) {
+  if (!colorHex) {
+    return { backgroundColor: "#64748b" }; // fallback
   }
-  if (normalized === "#ff0000") return "bg-red-500";
-  if (normalized === "#0000ff") return "bg-blue-500";
-  if (normalized === "#ffff00") return "bg-yellow-400";
-  if (normalized === "#008000") return "bg-green-700";
-  if (normalized === "#ffa500") return "bg-orange-500";
-  if (normalized === "#ffc0cb") return "bg-pink-500";
 
-  return "bg-slate-400";
+  return {
+    backgroundColor: colorHex,
+    border:
+      colorHex.toLowerCase() === "#ffffff"
+        ? "1px solid #cbd5f5"
+        : undefined,
+  };
 }
 
 export default function CaptainPage() {
@@ -71,7 +69,10 @@ export default function CaptainPage() {
 
   useEffect(() => {
     if (!user) return;
-    void Promise.all([loadCaptainTeam(user.user_id), loadCaptainOverview(user.user_id)]);
+    void Promise.all([
+      loadCaptainTeam(user.user_id),
+      loadCaptainOverview(user.user_id),
+    ]);
   }, [user]);
 
   async function loadCaptainTeam(userId: number) {
@@ -142,13 +143,18 @@ export default function CaptainPage() {
     setRenameLoading(true);
 
     try {
-      const updatedTeam = await renameMyTeamApi({ name: trimmed }, user.user_id);
+      const updatedTeam = await renameMyTeamApi(
+        { name: trimmed },
+        user.user_id
+      );
       setTeam(updatedTeam);
       setTeamNameInput(updatedTeam.name);
       setRenameSuccess("Багийн нэр амжилттай шинэчлэгдлээ.");
     } catch (err) {
       setRenameError(
-        err instanceof Error ? err.message : "Багийн нэр солих үед алдаа гарлаа."
+        err instanceof Error
+          ? err.message
+          : "Багийн нэр солих үед алдаа гарлаа."
       );
     } finally {
       setRenameLoading(false);
@@ -166,7 +172,13 @@ export default function CaptainPage() {
     return "";
   }, [team, user]);
 
-  const colorClass = useMemo(() => getTeamColorClass(team?.color_hex), [team]);
+  /**
+   * ✅ STYLE ашиглана
+   */
+  const teamStyle = useMemo(
+    () => getTeamStyle(team?.color_hex),
+    [team]
+  );
 
   if (!user) {
     return (
@@ -187,10 +199,9 @@ export default function CaptainPage() {
               <div className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-200">
                 MMS Sports Day
               </div>
-              <h1 className="mt-1 text-3xl font-black text-white">Ахлагчийн самбар</h1>
-              <p className="mt-1 text-sm text-slate-300">
-                Багийн мэдээлэл, оноо, тоглолт, бүрэлдэхүүнийг нэг дороос харна.
-              </p>
+              <h1 className="mt-1 text-3xl font-black text-white">
+                Ахлагчийн самбар
+              </h1>
             </div>
 
             <div className="flex items-center gap-3">
@@ -200,14 +211,19 @@ export default function CaptainPage() {
                 </div>
 
                 <div className="mt-1 flex items-center justify-end gap-2">
-                  <span className={`inline-block h-3 w-3 rounded-full ${colorClass}`} />
-                  <span className="text-sm font-semibold text-white">{displayName}</span>
+                  <span
+                    className="inline-block h-3 w-3 rounded-full"
+                    style={teamStyle}
+                  />
+                  <span className="text-sm font-semibold text-white">
+                    {displayName}
+                  </span>
                 </div>
               </div>
 
               <button
                 onClick={handleLogout}
-                className="rounded-2xl bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-600"
+                className="rounded-2xl bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600"
               >
                 Гарах
               </button>
@@ -217,92 +233,16 @@ export default function CaptainPage() {
 
         <main className="mx-auto max-w-7xl px-6 py-8">
           <div className="mb-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-            <div className="rounded-[28px] border border-white/10 bg-white/10 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.25)] backdrop-blur-xl">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">
-                    Багийн төлөв
-                  </div>
-
-                  <div className="mt-3 flex items-center gap-3">
-                    <span className={`inline-block h-4 w-4 rounded-full ${colorClass}`} />
-                    <h2 className="text-2xl font-black text-white">
-                      {teamLoading ? "Багийг ачаалж байна..." : team ? `${team.name} ахлагч` : user.username}
-                    </h2>
-                  </div>
-
-                  <p className="mt-2 text-sm leading-6 text-slate-300">
-                    {team
-                      ? `${team.name} (${team.code}) багийн ахлагчийн удирдлагын хэсэг`
-                      : "Таны багийн мэдээллийг ачаалж байна."}
-                  </p>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <MiniInfoCard label="Эрх" value="Ахлагч" accent="emerald" />
-                  <MiniInfoCard label="Багийн код" value={team?.code || "-"} accent="cyan" />
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-[28px] border border-white/10 bg-white/10 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.25)] backdrop-blur-xl">
-              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-200">
-                Багийн тохиргоо
-              </div>
-              <h2 className="mt-2 text-xl font-bold text-white">Багийн нэр солих</h2>
-              <p className="mt-1 text-sm leading-6 text-slate-300">
-                Эндээс багийнхаа нэрийг шинэчилнэ.
-              </p>
-
-              <div className="mt-5">
-                <label className="mb-2 block text-sm font-medium text-slate-200">
-                  Багийн нэр
-                </label>
-                <input
-                  type="text"
-                  value={teamNameInput}
-                  onChange={(e) => setTeamNameInput(e.target.value)}
-                  placeholder="Шинэ нэр оруулна уу"
-                  disabled={teamLoading || renameLoading || !team}
-                  className="w-full rounded-2xl border border-white/10 bg-black/10 px-4 py-3 text-white outline-none placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60"
+            <div className="rounded-[28px] border border-white/10 bg-white/10 p-6 backdrop-blur-xl">
+              <div className="flex items-center gap-3">
+                <span
+                  className="inline-block h-4 w-4 rounded-full"
+                  style={teamStyle}
                 />
+                <h2 className="text-2xl font-black text-white">
+                  {team?.name || "Loading..."}
+                </h2>
               </div>
-
-              <div className="mt-4 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTeamNameInput(team?.name || "");
-                    setRenameError("");
-                    setRenameSuccess("");
-                  }}
-                  disabled={renameLoading || teamLoading || !team}
-                  className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  Буцаах
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => void handleRenameTeam()}
-                  disabled={renameLoading || teamLoading || !team}
-                  className="rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-500 px-5 py-3 text-sm font-bold text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {renameLoading ? "Хадгалж байна..." : "Хадгалах"}
-                </button>
-              </div>
-
-              {renameError ? (
-                <div className="mt-4 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-                  {renameError}
-                </div>
-              ) : null}
-
-              {renameSuccess ? (
-                <div className="mt-4 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
-                  {renameSuccess}
-                </div>
-              ) : null}
             </div>
           </div>
 
@@ -319,25 +259,6 @@ export default function CaptainPage() {
           </div>
         </main>
       </div>
-    </div>
-  );
-}
-
-function MiniInfoCard({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: string;
-  accent: "emerald" | "cyan";
-}) {
-  const color = accent === "emerald" ? "text-emerald-300" : "text-cyan-300";
-
-  return (
-    <div className="rounded-2xl border border-white/10 bg-black/10 px-4 py-3">
-      <div className="text-[11px] uppercase tracking-[0.16em] text-slate-400">{label}</div>
-      <div className={`mt-2 text-lg font-black ${color}`}>{value}</div>
     </div>
   );
 }
