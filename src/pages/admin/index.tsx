@@ -263,21 +263,19 @@ export default function AdminPage() {
       }
     >
       {activeSection === "overview" && (
-        <AdminOverviewDashboard
-          sports={sports}
-          teams={teams}
-          matches={matches as never}
-          standings={(resultsDashboard?.teams || []) as never}
-          roster={roster}
-          sportsLoading={sportsLoading}
-          matchesLoading={matchesLoading}
-          teamsLoading={teamsLoading}
-          standingsLoading={standingsLoading}
-          rosterLoading={rosterLoading}
-          teamsError={teamsError}
-          standingsError={standingsError}
-          rosterError={rosterError}
-        />
+      <AdminOverviewDashboard
+  sports={sports}
+  teams={teams}
+  matches={matches}
+  standings={resultsDashboard?.teams || []}
+  resultsDashboard={resultsDashboard}
+  sportsLoading={sportsLoading}
+  matchesLoading={matchesLoading}
+  teamsLoading={teamsLoading}
+  standingsLoading={standingsLoading}
+  teamsError={teamsError}
+  standingsError={standingsError}
+/>
       )}
 
       {activeSection === "sports" && (
