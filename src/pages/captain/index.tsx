@@ -1,10 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
+import CaptainOverviewDashboard from "@/components/captain/captain-overview-dashboard";
 import MyTeamCard from "@/components/captain/my-team-card";
 import {
   AuthUser,
+  DraftMyTeamResponse,
+  MatchItem,
+  StandingItem,
   TeamItem,
   getAuthUser,
+  getMyDraftTeamApi,
+  listMatchesApi,
+  listStandingsApi,
   listTeamsApi,
   logout,
   renameMyTeamApi,
@@ -36,6 +43,11 @@ export default function CaptainPage() {
   const [team, setTeam] = useState<TeamItem | null>(null);
   const [teamLoading, setTeamLoading] = useState(true);
 
+  const [standings, setStandings] = useState<StandingItem[]>([]);
+  const [matches, setMatches] = useState<MatchItem[]>([]);
+  const [myTeam, setMyTeam] = useState<DraftMyTeamResponse | null>(null);
+  const [overviewLoading, setOverviewLoading] = useState(true);
+
   const [teamNameInput, setTeamNameInput] = useState("");
   const [renameLoading, setRenameLoading] = useState(false);
   const [renameError, setRenameError] = useState("");
@@ -59,7 +71,7 @@ export default function CaptainPage() {
 
   useEffect(() => {
     if (!user) return;
-    void loadCaptainTeam(user.user_id);
+    void Promise.all([loadCaptainTeam(user.user_id), loadCaptainOverview(user.user_id)]);
   }, [user]);
 
   async function loadCaptainTeam(userId: number) {
@@ -68,16 +80,39 @@ export default function CaptainPage() {
 
     try {
       const teams = await listTeamsApi(userId);
-      const myTeam =
+      const myCurrentTeam =
         teams.find((item) => item.captain_user_id === userId) || null;
 
-      setTeam(myTeam);
-      setTeamNameInput(myTeam?.name || "");
+      setTeam(myCurrentTeam);
+      setTeamNameInput(myCurrentTeam?.name || "");
     } catch (error) {
       console.error("Failed to load captain team", error);
       setTeam(null);
     } finally {
       setTeamLoading(false);
+    }
+  }
+
+  async function loadCaptainOverview(userId: number) {
+    setOverviewLoading(true);
+
+    try {
+      const [standingRows, matchRows, myTeamRows] = await Promise.all([
+        listStandingsApi(userId),
+        listMatchesApi(userId),
+        getMyDraftTeamApi(userId),
+      ]);
+
+      setStandings(standingRows);
+      setMatches(matchRows);
+      setMyTeam(myTeamRows);
+    } catch (error) {
+      console.error("Failed to load captain overview", error);
+      setStandings([]);
+      setMatches([]);
+      setMyTeam(null);
+    } finally {
+      setOverviewLoading(false);
     }
   }
 
@@ -90,12 +125,12 @@ export default function CaptainPage() {
     setRenameSuccess("");
 
     if (!trimmed) {
-      setRenameError("Team name хоосон байж болохгүй.");
+      setRenameError("Багийн нэр хоосон байж болохгүй.");
       return;
     }
 
     if (trimmed.length < 2) {
-      setRenameError("Team name хэт богино байна.");
+      setRenameError("Багийн нэр хэт богино байна.");
       return;
     }
 
@@ -108,7 +143,6 @@ export default function CaptainPage() {
 
     try {
       const updatedTeam = await renameMyTeamApi({ name: trimmed }, user.user_id);
-
       setTeam(updatedTeam);
       setTeamNameInput(updatedTeam.name);
       setRenameSuccess("Багийн нэр амжилттай шинэчлэгдлээ.");
@@ -127,7 +161,7 @@ export default function CaptainPage() {
   }
 
   const displayName = useMemo(() => {
-    if (team?.name) return `${team.name} Captain`;
+    if (team?.name) return `${team.name} ахлагч`;
     if (user?.username) return user.username;
     return "";
   }, [team, user]);
@@ -137,7 +171,7 @@ export default function CaptainPage() {
   if (!user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
-        Loading captain portal...
+        Ахлагчийн хэсгийг ачаалж байна...
       </div>
     );
   }
@@ -153,25 +187,21 @@ export default function CaptainPage() {
               <div className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-200">
                 MMS Sports Day
               </div>
-              <h1 className="mt-1 text-3xl font-black text-white">
-                Captain Team Hub
-              </h1>
+              <h1 className="mt-1 text-3xl font-black text-white">Ахлагчийн самбар</h1>
               <p className="mt-1 text-sm text-slate-300">
-                Team settings, roster overview, leader/member structure.
+                Багийн мэдээлэл, оноо, тоглолт, бүрэлдэхүүнийг нэг дороос харна.
               </p>
             </div>
 
             <div className="flex items-center gap-3">
               <div className="hidden rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-right md:block">
                 <div className="text-[11px] uppercase tracking-[0.16em] text-slate-300">
-                  Signed in as
+                  Нэвтэрсэн хэрэглэгч
                 </div>
 
                 <div className="mt-1 flex items-center justify-end gap-2">
                   <span className={`inline-block h-3 w-3 rounded-full ${colorClass}`} />
-                  <span className="text-sm font-semibold text-white">
-                    {displayName}
-                  </span>
+                  <span className="text-sm font-semibold text-white">{displayName}</span>
                 </div>
               </div>
 
@@ -179,7 +209,7 @@ export default function CaptainPage() {
                 onClick={handleLogout}
                 className="rounded-2xl bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-600"
               >
-                Sign Out
+                Гарах
               </button>
             </div>
           </div>
@@ -191,62 +221,48 @@ export default function CaptainPage() {
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <div className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">
-                    Team Access
+                    Багийн төлөв
                   </div>
 
                   <div className="mt-3 flex items-center gap-3">
                     <span className={`inline-block h-4 w-4 rounded-full ${colorClass}`} />
                     <h2 className="text-2xl font-black text-white">
-                      {teamLoading
-                        ? "Loading team..."
-                        : team
-                        ? `${team.name} Captain`
-                        : user.username}
+                      {teamLoading ? "Багийг ачаалж байна..." : team ? `${team.name} ахлагч` : user.username}
                     </h2>
                   </div>
 
                   <p className="mt-2 text-sm leading-6 text-slate-300">
                     {team
-                      ? `You are managing ${team.name} (${team.code}) roster and captain settings.`
-                      : "You are viewing the captain portal for your assigned team."}
+                      ? `${team.name} (${team.code}) багийн ахлагчийн удирдлагын хэсэг`
+                      : "Таны багийн мэдээллийг ачаалж байна."}
                   </p>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <MiniInfoCard
-                    label="Access"
-                    value="Captain"
-                    accent="emerald"
-                  />
-                  <MiniInfoCard
-                    label="Team Code"
-                    value={team?.code || "-"}
-                    accent="cyan"
-                  />
+                  <MiniInfoCard label="Эрх" value="Ахлагч" accent="emerald" />
+                  <MiniInfoCard label="Багийн код" value={team?.code || "-"} accent="cyan" />
                 </div>
               </div>
             </div>
 
             <div className="rounded-[28px] border border-white/10 bg-white/10 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.25)] backdrop-blur-xl">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-200">
-                Team Settings
+                Багийн тохиргоо
               </div>
-              <h2 className="mt-2 text-xl font-bold text-white">
-                Rename My Team
-              </h2>
+              <h2 className="mt-2 text-xl font-bold text-white">Багийн нэр солих</h2>
               <p className="mt-1 text-sm leading-6 text-slate-300">
-                Багийн нэрээ эндээс шинэчилнэ.
+                Эндээс багийнхаа нэрийг шинэчилнэ.
               </p>
 
               <div className="mt-5">
                 <label className="mb-2 block text-sm font-medium text-slate-200">
-                  Team Name
+                  Багийн нэр
                 </label>
                 <input
                   type="text"
                   value={teamNameInput}
                   onChange={(e) => setTeamNameInput(e.target.value)}
-                  placeholder="Enter new team name"
+                  placeholder="Шинэ нэр оруулна уу"
                   disabled={teamLoading || renameLoading || !team}
                   className="w-full rounded-2xl border border-white/10 bg-black/10 px-4 py-3 text-white outline-none placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60"
                 />
@@ -263,7 +279,7 @@ export default function CaptainPage() {
                   disabled={renameLoading || teamLoading || !team}
                   className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Reset
+                  Буцаах
                 </button>
 
                 <button
@@ -272,7 +288,7 @@ export default function CaptainPage() {
                   disabled={renameLoading || teamLoading || !team}
                   className="rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-500 px-5 py-3 text-sm font-bold text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {renameLoading ? "Saving..." : "Save Name"}
+                  {renameLoading ? "Хадгалж байна..." : "Хадгалах"}
                 </button>
               </div>
 
@@ -290,7 +306,17 @@ export default function CaptainPage() {
             </div>
           </div>
 
-          <MyTeamCard userId={user.user_id} />
+          <CaptainOverviewDashboard
+            team={team}
+            standings={standings}
+            matches={matches}
+            myTeam={myTeam}
+            loading={overviewLoading}
+          />
+
+          <div className="mt-6">
+            <MyTeamCard userId={user.user_id} />
+          </div>
         </main>
       </div>
     </div>
@@ -306,14 +332,11 @@ function MiniInfoCard({
   value: string;
   accent: "emerald" | "cyan";
 }) {
-  const color =
-    accent === "emerald" ? "text-emerald-300" : "text-cyan-300";
+  const color = accent === "emerald" ? "text-emerald-300" : "text-cyan-300";
 
   return (
     <div className="rounded-2xl border border-white/10 bg-black/10 px-4 py-3">
-      <div className="text-[11px] uppercase tracking-[0.16em] text-slate-400">
-        {label}
-      </div>
+      <div className="text-[11px] uppercase tracking-[0.16em] text-slate-400">{label}</div>
       <div className={`mt-2 text-lg font-black ${color}`}>{value}</div>
     </div>
   );

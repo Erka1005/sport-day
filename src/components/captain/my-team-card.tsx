@@ -49,7 +49,7 @@ export default function MyTeamCard({ userId }: Props) {
       setData(result);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "My team татах үед алдаа гарлаа."
+        err instanceof Error ? err.message : "Миний багийн мэдээлэл татах үед алдаа гарлаа."
       );
       setData(null);
     } finally {
@@ -70,16 +70,15 @@ export default function MyTeamCard({ userId }: Props) {
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="inline-flex rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-200">
-              Captain View
+              Миний бүрэлдэхүүн
             </div>
 
             <h2 className="mt-3 text-2xl font-black text-white">
-              My Team Roster
+              Багийн бүрэлдэхүүн
             </h2>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-              Ангилал бүрээр багийн бүрэлдэхүүнээ харна. Leader хүмүүс тод card-аар,
-              зураггүй хүмүүс initials avatar-аар харагдана.
+              Ангилал бүрээр багийн leader болон members-ийг ойлгомжтой байдлаар харуулна.
             </p>
           </div>
 
@@ -87,7 +86,7 @@ export default function MyTeamCard({ userId }: Props) {
             onClick={() => void loadMyTeam()}
             className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
           >
-            {loading ? "Refreshing..." : "Refresh"}
+            {loading ? "Шинэчилж байна..." : "Дахин ачаалах"}
           </button>
         </div>
 
@@ -99,24 +98,16 @@ export default function MyTeamCard({ userId }: Props) {
 
         {!loading && data ? (
           <div className="mt-6 grid gap-4 md:grid-cols-3">
-            <SummaryStat label="Team Code" value={data.team_code} accent="cyan" />
-            <SummaryStat
-              label="Total Players"
-              value={String(totalPlayers)}
-              accent="white"
-            />
-            <SummaryStat
-              label="Leaders"
-              value={String(totalLeaders)}
-              accent="amber"
-            />
+            <SummaryStat label="Багийн код" value={data.team_code} accent="cyan" />
+            <SummaryStat label="Нийт тоглогч" value={String(totalPlayers)} accent="white" />
+            <SummaryStat label="Leader" value={String(totalLeaders)} accent="amber" />
           </div>
         ) : null}
       </div>
 
       {loading ? (
         <div className="rounded-[28px] border border-white/10 bg-white/10 p-8 text-sm text-slate-300 backdrop-blur-xl">
-          Loading my team...
+          Бүрэлдэхүүнийг ачаалж байна...
         </div>
       ) : !data ? (
         <div className="rounded-[28px] border border-white/10 bg-white/10 p-8 text-sm text-slate-300 backdrop-blur-xl">
@@ -124,7 +115,7 @@ export default function MyTeamCard({ userId }: Props) {
         </div>
       ) : data.categories.length === 0 ? (
         <div className="rounded-[28px] border border-white/10 bg-white/10 p-8 text-sm text-slate-300 backdrop-blur-xl">
-          Одоогоор roster хоосон байна.
+          Одоогоор бүрэлдэхүүн хоосон байна.
         </div>
       ) : (
         <div className="space-y-5">
@@ -139,7 +130,7 @@ export default function MyTeamCard({ userId }: Props) {
                 <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <div className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">
-                      Category
+                      Ангилал
                     </div>
                     <h3 className="mt-2 text-xl font-bold text-white">
                       {formatSportKey(category.sport_key)}
@@ -151,18 +142,18 @@ export default function MyTeamCard({ userId }: Props) {
 
                   <div className="flex flex-wrap gap-2">
                     {typeof category.quota === "number" ? (
-                      <Badge tone="cyan">Quota: {category.quota}</Badge>
+                      <Badge tone="cyan">Квот: {category.quota}</Badge>
                     ) : null}
                     {typeof category.filled === "number" ? (
-                      <Badge tone="emerald">Filled: {category.filled}</Badge>
+                      <Badge tone="emerald">Дүүргэлт: {category.filled}</Badge>
                     ) : null}
-                    <Badge tone="amber">Leaders: {leaders}</Badge>
+                    <Badge tone="amber">Leader: {leaders}</Badge>
                   </div>
                 </div>
 
                 {category.players.length === 0 ? (
                   <div className="rounded-2xl border border-white/10 bg-black/10 px-4 py-5 text-sm text-slate-300">
-                    Энэ sport дээр одоогоор хүн алга.
+                    Энэ ангилалд одоогоор хүн алга.
                   </div>
                 ) : (
                   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -185,9 +176,9 @@ export default function MyTeamCard({ userId }: Props) {
                                 alt={player.employee_name}
                                 className="h-16 w-16 rounded-2xl object-cover ring-1 ring-white/10"
                                 onError={(e) => {
-                                  const target = e.currentTarget;
-                                  target.style.display = "none";
-                                  const fallback = target.nextElementSibling as HTMLElement | null;
+                                  const img = e.currentTarget;
+                                  img.style.display = "none";
+                                  const fallback = img.nextElementSibling as HTMLElement | null;
                                   if (fallback) fallback.style.display = "flex";
                                 }}
                               />
@@ -210,7 +201,7 @@ export default function MyTeamCard({ userId }: Props) {
                                 {player.leader ? (
                                   <Badge tone="amber">⭐ Leader</Badge>
                                 ) : (
-                                  <Badge tone="slate">Member</Badge>
+                                  <Badge tone="slate">Гишүүн</Badge>
                                 )}
 
                                 {typeof player.round_no === "number" ? (
@@ -221,12 +212,6 @@ export default function MyTeamCard({ userId }: Props) {
                               {player.note ? (
                                 <div className="mt-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs leading-5 text-slate-300">
                                   🏅 {player.note}
-                                </div>
-                              ) : null}
-
-                              {imageUrl ? (
-                                <div className="mt-2 truncate text-[11px] text-slate-500">
-                                  {imageUrl}
                                 </div>
                               ) : null}
                             </div>
@@ -263,9 +248,7 @@ function SummaryStat({
 
   return (
     <div className="rounded-2xl border border-white/10 bg-black/10 p-4">
-      <div className="text-xs uppercase tracking-[0.16em] text-slate-400">
-        {label}
-      </div>
+      <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{label}</div>
       <div className={`mt-2 text-2xl font-black ${color}`}>{value}</div>
     </div>
   );
@@ -288,9 +271,7 @@ function Badge({
       : "border-slate-400/20 bg-slate-400/10 text-slate-200";
 
   return (
-    <span
-      className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${className}`}
-    >
+    <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${className}`}>
       {children}
     </span>
   );

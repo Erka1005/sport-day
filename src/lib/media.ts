@@ -4,7 +4,6 @@ const API_BASE =
 
 function toPublicMediaPath(inputPath: string): string {
   let path = inputPath.trim();
-
   path = path.replace(/\\/g, "/");
 
   if (path.includes("/mnt/mmse-uploads/sport_day_members/")) {
@@ -38,8 +37,8 @@ export function resolveMediaUrl(url?: string | null): string | null {
   try {
     if (raw.startsWith("http://") || raw.startsWith("https://")) {
       const parsed = new URL(raw);
-
       const convertedPath = toPublicMediaPath(parsed.pathname);
+
       if (convertedPath.startsWith("/media/")) {
         return `${API_BASE}${convertedPath}`;
       }
@@ -47,7 +46,7 @@ export function resolveMediaUrl(url?: string | null): string | null {
       return raw;
     }
   } catch {
-    // ignore and continue
+    // ignore
   }
 
   const convertedPath = toPublicMediaPath(raw);

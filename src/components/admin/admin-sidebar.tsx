@@ -14,33 +14,33 @@ type AdminSidebarProps = {
 const items: { key: AdminSection; label: string; desc: string }[] = [
   {
     key: "overview",
-    label: "Overview",
-    desc: "Dashboard and live summary",
+    label: "Ерөнхий хяналт",
+    desc: "Нийт мэдээлэл, хүснэгт, явц",
   },
   {
     key: "sports",
-    label: "Sports",
-    desc: "Manage sports and draft mode",
+    label: "Төрлүүд",
+    desc: "Тэмцээний төрлүүд үүсгэх, харах",
   },
   {
     key: "schedule",
-    label: "Schedule",
-    desc: "Create and review matches",
+    label: "Хуваарь",
+    desc: "Тоглолт үүсгэх, шалгах",
   },
   {
     key: "results",
-    label: "Results",
-    desc: "Submit match results",
+    label: "Үр дүн",
+    desc: "Оноо оруулах, түүх харах",
   },
   {
     key: "roster",
-    label: "Roster",
-    desc: "Manage team members",
+    label: "Бүрэлдэхүүн",
+    desc: "Leader, member удирдах",
   },
   {
     key: "draft",
-    label: "Draft",
-    desc: "Draft controls and pool",
+    label: "Драфт",
+    desc: "Pool, choose, confirm",
   },
 ];
 
@@ -52,9 +52,9 @@ export default function AdminSidebar({
     <aside className="rounded-3xl border border-white/10 bg-white/10 p-4 backdrop-blur-xl">
       <div className="mb-4 px-2">
         <div className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">
-          Navigation
+          Цэс
         </div>
-        <h2 className="mt-2 text-lg font-bold text-white">Admin Menu</h2>
+        <h2 className="mt-2 text-lg font-bold text-white">Админ удирдлага</h2>
       </div>
 
       <div className="space-y-2">
@@ -72,7 +72,7 @@ export default function AdminSidebar({
               }`}
             >
               <div className="text-sm font-semibold text-white">{item.label}</div>
-              <div className="mt-1 text-xs text-slate-300">{item.desc}</div>
+              <div className="mt-1 text-xs leading-5 text-slate-300">{item.desc}</div>
             </button>
           );
         })}
