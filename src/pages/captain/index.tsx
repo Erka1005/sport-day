@@ -132,9 +132,7 @@ export default function CaptainPage() {
     return "";
   }, [team, user]);
 
-  const colorClass = useMemo(() => {
-    return getTeamColorClass(team?.color_hex);
-  }, [team]);
+  const colorClass = useMemo(() => getTeamColorClass(team?.color_hex), [team]);
 
   if (!user) {
     return (
@@ -155,11 +153,11 @@ export default function CaptainPage() {
               <div className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-200">
                 MMS Sports Day
               </div>
-              <h1 className="mt-1 text-2xl font-black text-white">
+              <h1 className="mt-1 text-3xl font-black text-white">
                 Captain Team Hub
               </h1>
               <p className="mt-1 text-sm text-slate-300">
-                Team settings болон өөрийн багийн roster мэдээлэл.
+                Team settings, roster overview, leader/member structure.
               </p>
             </div>
 
@@ -188,60 +186,59 @@ export default function CaptainPage() {
         </header>
 
         <main className="mx-auto max-w-7xl px-6 py-8">
-          <div className="mb-6 rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur-xl">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">
-                  Team Access
+          <div className="mb-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+            <div className="rounded-[28px] border border-white/10 bg-white/10 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.25)] backdrop-blur-xl">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">
+                    Team Access
+                  </div>
+
+                  <div className="mt-3 flex items-center gap-3">
+                    <span className={`inline-block h-4 w-4 rounded-full ${colorClass}`} />
+                    <h2 className="text-2xl font-black text-white">
+                      {teamLoading
+                        ? "Loading team..."
+                        : team
+                        ? `${team.name} Captain`
+                        : user.username}
+                    </h2>
+                  </div>
+
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    {team
+                      ? `You are managing ${team.name} (${team.code}) roster and captain settings.`
+                      : "You are viewing the captain portal for your assigned team."}
+                  </p>
                 </div>
 
-                <div className="mt-2 flex items-center gap-3">
-                  <span className={`inline-block h-4 w-4 rounded-full ${colorClass}`} />
-                  <h2 className="text-xl font-bold text-white">
-                    {teamLoading
-                      ? "Loading team..."
-                      : team
-                      ? `${team.name} Captain`
-                      : user.username}
-                  </h2>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <MiniInfoCard
+                    label="Access"
+                    value="Captain"
+                    accent="emerald"
+                  />
+                  <MiniInfoCard
+                    label="Team Code"
+                    value={team?.code || "-"}
+                    accent="cyan"
+                  />
                 </div>
-
-                <p className="mt-1 text-sm text-slate-300">
-                  {team
-                    ? `You are viewing the captain portal for ${team.name} (${team.code})`
-                    : "You are viewing the captain portal for your assigned team."}
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm font-medium text-emerald-200">
-                Captain Access Active
               </div>
             </div>
-          </div>
 
-          <div className="mb-6 rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur-xl">
-            <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-200">
-                  Team Settings
-                </div>
-                <h2 className="mt-1 text-xl font-bold text-white">
-                  Rename My Team
-                </h2>
-                <p className="mt-1 text-sm text-slate-300">
-                  Captain өөрийн багийн нэрийг эндээс өөрчилж болно.
-                </p>
+            <div className="rounded-[28px] border border-white/10 bg-white/10 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.25)] backdrop-blur-xl">
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-200">
+                Team Settings
               </div>
+              <h2 className="mt-2 text-xl font-bold text-white">
+                Rename My Team
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-slate-300">
+                Багийн нэрээ эндээс шинэчилнэ.
+              </p>
 
-              {team ? (
-                <div className="rounded-2xl border border-white/10 bg-black/10 px-4 py-3 text-sm text-slate-200">
-                  Current code: <span className="font-bold text-white">{team.code}</span>
-                </div>
-              ) : null}
-            </div>
-
-            <div className="grid gap-4 lg:grid-cols-[1fr_auto]">
-              <div>
+              <div className="mt-5">
                 <label className="mb-2 block text-sm font-medium text-slate-200">
                   Team Name
                 </label>
@@ -255,7 +252,7 @@ export default function CaptainPage() {
                 />
               </div>
 
-              <div className="flex items-end gap-3">
+              <div className="mt-4 flex flex-wrap gap-3">
                 <button
                   type="button"
                   onClick={() => {
@@ -278,24 +275,46 @@ export default function CaptainPage() {
                   {renameLoading ? "Saving..." : "Save Name"}
                 </button>
               </div>
+
+              {renameError ? (
+                <div className="mt-4 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                  {renameError}
+                </div>
+              ) : null}
+
+              {renameSuccess ? (
+                <div className="mt-4 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+                  {renameSuccess}
+                </div>
+              ) : null}
             </div>
-
-            {renameError ? (
-              <div className="mt-4 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-                {renameError}
-              </div>
-            ) : null}
-
-            {renameSuccess ? (
-              <div className="mt-4 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
-                {renameSuccess}
-              </div>
-            ) : null}
           </div>
 
           <MyTeamCard userId={user.user_id} />
         </main>
       </div>
+    </div>
+  );
+}
+
+function MiniInfoCard({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string;
+  accent: "emerald" | "cyan";
+}) {
+  const color =
+    accent === "emerald" ? "text-emerald-300" : "text-cyan-300";
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/10 px-4 py-3">
+      <div className="text-[11px] uppercase tracking-[0.16em] text-slate-400">
+        {label}
+      </div>
+      <div className={`mt-2 text-lg font-black ${color}`}>{value}</div>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import AdminLayout from "@/components/admin/admin-layout";
 import AdminSidebar, { AdminSection } from "@/components/admin/admin-sidebar";
+import AdminOverviewDashboard from "@/components/admin/admin-overview-dashboard";
 import SportFormCard from "@/components/admin/sport-form-card";
 import SportListCard from "@/components/admin/sport-list-card";
 import MatchFormCard from "@/components/admin/match-form-card";
@@ -13,14 +14,18 @@ import {
   AuthUser,
   CreateMatchPayload,
   CreateSportPayload,
+  DraftRosterResponse,
   MatchItem,
   SportItem,
+  StandingItem,
   TeamItem,
   createMatchApi,
   createSportApi,
   getAuthUser,
+  getDraftRosterApi,
   listMatchesApi,
   listSportsApi,
+  listStandingsApi,
   listTeamsApi,
   setMatchResultApi,
 } from "@/services/api";
@@ -52,6 +57,14 @@ export default function AdminPage() {
   const [teamsLoading, setTeamsLoading] = useState(true);
   const [teamsError, setTeamsError] = useState("");
 
+  const [standings, setStandings] = useState<StandingItem[]>([]);
+  const [standingsLoading, setStandingsLoading] = useState(true);
+  const [standingsError, setStandingsError] = useState("");
+
+  const [roster, setRoster] = useState<DraftRosterResponse | null>(null);
+  const [rosterLoading, setRosterLoading] = useState(true);
+  const [rosterError, setRosterError] = useState("");
+
   const [resultHistory, setResultHistory] = useState<ResultHistoryItem[]>([]);
 
   useEffect(() => {
@@ -72,10 +85,13 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!user) return;
+
     void Promise.all([
       loadSports(user.user_id),
       loadMatches(user.user_id),
       loadTeams(user.user_id),
+      loadStandings(user.user_id),
+      loadRoster(),
     ]);
   }, [user]);
 
@@ -87,9 +103,7 @@ export default function AdminPage() {
       const items = await listSportsApi(userId);
       setSports(items);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to load sports.";
-      setSportsError(message);
+      setSportsError(err instanceof Error ? err.message : "Failed to load sports.");
     } finally {
       setSportsLoading(false);
     }
@@ -103,9 +117,7 @@ export default function AdminPage() {
       const items = await listMatchesApi(userId);
       setMatches(items);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to load matches.";
-      setMatchesError(message);
+      setMatchesError(err instanceof Error ? err.message : "Failed to load matches.");
     } finally {
       setMatchesLoading(false);
     }
@@ -119,11 +131,40 @@ export default function AdminPage() {
       const items = await listTeamsApi(userId);
       setTeams(items);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to load teams.";
-      setTeamsError(message);
+      setTeamsError(err instanceof Error ? err.message : "Failed to load teams.");
     } finally {
       setTeamsLoading(false);
+    }
+  }
+
+  async function loadStandings(userId: number) {
+    setStandingsLoading(true);
+    setStandingsError("");
+
+    try {
+      const items = await listStandingsApi(userId);
+      setStandings(items);
+    } catch (err) {
+      setStandingsError(
+        err instanceof Error ? err.message : "Failed to load standings."
+      );
+    } finally {
+      setStandingsLoading(false);
+    }
+  }
+
+  async function loadRoster() {
+    setRosterLoading(true);
+    setRosterError("");
+
+    try {
+      const data = await getDraftRosterApi();
+      setRoster(data);
+    } catch (err) {
+      setRosterError(err instanceof Error ? err.message : "Failed to load roster.");
+      setRoster(null);
+    } finally {
+      setRosterLoading(false);
     }
   }
 
@@ -145,9 +186,7 @@ export default function AdminPage() {
     matchId: number,
     payload: { score_a: number; score_b: number }
   ) {
-    if (!user) {
-      throw new Error("User not found.");
-    }
+    if (!user) throw new Error("User not found.");
 
     const message = await setMatchResultApi(matchId, payload, user.user_id);
 
@@ -176,6 +215,9 @@ export default function AdminPage() {
       )
     );
 
+    await loadStandings(user.user_id);
+    await loadRoster();
+
     return message;
   }
 
@@ -198,47 +240,21 @@ export default function AdminPage() {
       }
     >
       {activeSection === "overview" && (
-        <section className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <StatCard label="Configured Sports" value={String(sports.length)} />
-            <StatCard label="Scheduled Matches" value={String(matches.length)} />
-            <StatCard
-              label="Teams"
-              value={teamsLoading ? "..." : String(teams.length)}
-              accent="cyan"
-            />
-            <StatCard
-              label="Submitted Results"
-              value={String(resultHistory.length)}
-              accent="emerald"
-            />
-          </div>
-
-          <div className="grid gap-4 xl:grid-cols-2">
-            <InfoCard
-              title="Sports Management"
-              desc="Create sport categories and review all configured sports."
-            />
-            <InfoCard
-              title="Schedule Management"
-              desc="Create matches and review the current event schedule."
-            />
-            <InfoCard
-              title="Roster Management"
-              desc="Bulk add, bulk set, bulk remove and delete team members."
-            />
-            <InfoCard
-              title="Draft"
-              desc="Draft panel is temporarily disabled."
-            />
-          </div>
-
-          {teamsError ? (
-            <div className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-              {teamsError}
-            </div>
-          ) : null}
-        </section>
+        <AdminOverviewDashboard
+          sports={sports}
+          teams={teams}
+          matches={matches}
+          standings={standings}
+          roster={roster}
+          sportsLoading={sportsLoading}
+          matchesLoading={matchesLoading}
+          teamsLoading={teamsLoading}
+          standingsLoading={standingsLoading}
+          rosterLoading={rosterLoading}
+          teamsError={teamsError}
+          standingsError={standingsError}
+          rosterError={rosterError}
+        />
       )}
 
       {activeSection === "sports" && (
@@ -289,49 +305,15 @@ export default function AdminPage() {
 
       {activeSection === "draft" && (
         <section>
-          <div className="rounded-3xl border border-dashed border-amber-400/20 bg-amber-500/10 p-8 backdrop-blur-xl">
-            <h3 className="text-xl font-bold text-white">Draft disabled</h3>
+          <div className="rounded-3xl border border-dashed border-cyan-400/20 bg-cyan-500/10 p-8 backdrop-blur-xl">
+            <h3 className="text-xl font-bold text-white">Draft panel</h3>
             <p className="mt-2 text-sm text-slate-300">
-              Одоогоор roster member management идэвхтэй байгаа тул draft panel-ийг түр унтраасан.
+              Uses_draft=true sport дээр pool, choose, confirm UI-г дараагийн
+              алхмаар холбоно.
             </p>
           </div>
         </section>
       )}
     </AdminLayout>
-  );
-}
-
-function StatCard({
-  label,
-  value,
-  accent = "white",
-}: {
-  label: string;
-  value: string;
-  accent?: "white" | "cyan" | "amber" | "emerald";
-}) {
-  const color =
-    accent === "cyan"
-      ? "text-cyan-300"
-      : accent === "amber"
-      ? "text-amber-300"
-      : accent === "emerald"
-      ? "text-emerald-300"
-      : "text-white";
-
-  return (
-    <div className="rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur-xl">
-      <div className="text-sm text-slate-300">{label}</div>
-      <div className={`mt-2 text-3xl font-black ${color}`}>{value}</div>
-    </div>
-  );
-}
-
-function InfoCard({ title, desc }: { title: string; desc: string }) {
-  return (
-    <div className="rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur-xl">
-      <h3 className="text-lg font-bold text-white">{title}</h3>
-      <p className="mt-2 text-sm leading-6 text-slate-300">{desc}</p>
-    </div>
   );
 }

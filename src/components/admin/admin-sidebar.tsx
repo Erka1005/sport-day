@@ -15,12 +15,12 @@ const items: { key: AdminSection; label: string; desc: string }[] = [
   {
     key: "overview",
     label: "Overview",
-    desc: "Summary and quick stats",
+    desc: "Dashboard and live summary",
   },
   {
     key: "sports",
     label: "Sports",
-    desc: "Create and manage sports",
+    desc: "Manage sports and draft mode",
   },
   {
     key: "schedule",
@@ -40,7 +40,7 @@ const items: { key: AdminSection; label: string; desc: string }[] = [
   {
     key: "draft",
     label: "Draft",
-    desc: "Temporarily disabled",
+    desc: "Draft controls and pool",
   },
 ];
 

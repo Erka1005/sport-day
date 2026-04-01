@@ -13,18 +13,22 @@ export type LoginResponse = {
 
 export type AuthUser = LoginResponse;
 
+/* ---------------- Sports ---------------- */
+
 export type CreateSportPayload = {
   key: string;
   name: string;
-  scoring_type: string;
+  uses_draft: boolean;
 };
 
 export type SportItem = {
   id: number;
   key: string;
   name: string;
-  scoring_type: string;
+  uses_draft: boolean;
 };
+
+/* ---------------- Matches ---------------- */
 
 export type CreateMatchPayload = {
   sport_id: number;
@@ -54,7 +58,7 @@ export type SetMatchResultPayload = {
 
 export type SetMatchResultResponse = string;
 
-/* ---------------- Draft Types ---------------- */
+/* ---------------- Draft ---------------- */
 
 export type DraftPoolItem = {
   id: number;
@@ -102,9 +106,10 @@ export type DraftStateResponse = {
 export type DraftRosterPlayer = {
   employee_name: string;
   photo_url: string | null;
+  leader: boolean;
+  note?: string | null;
   pick_no?: number;
   round_no?: number;
-  is_leader?: boolean;
 };
 
 export type DraftRosterCategory = {
@@ -151,7 +156,7 @@ export type DraftMyTeamResponse = {
   categories: DraftMyTeamCategory[];
 };
 
-/* ---------------- Team / Member Types ---------------- */
+/* ---------------- Teams / Members ---------------- */
 
 export type TeamItem = {
   id: number;
@@ -224,18 +229,6 @@ export type StandingItem = {
   points: number;
 };
 
-export type DraftOrderTeam = {
-  team_code: string;
-  team_name: string;
-  position: number;
-};
-
-export type DraftOrderItem = {
-  sport_key: string;
-  snake: boolean;
-  teams: DraftOrderTeam[];
-};
-
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
   "http://localhost:8000";
@@ -272,7 +265,6 @@ function resolveErrorMessage(data: unknown, fallback: string): string {
       message?: string;
       error?: string;
     };
-
     return maybe.detail || maybe.message || maybe.error || fallback;
   }
 
@@ -299,9 +291,7 @@ function withQuery(
 export async function loginApi(payload: LoginPayload): Promise<AuthUser> {
   const res = await fetch(`${API_BASE}/auth/login`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
 
@@ -311,14 +301,6 @@ export async function loginApi(payload: LoginPayload): Promise<AuthUser> {
 
   if (!res.ok || !data) {
     throw new Error(resolveErrorMessage(data, "Нэвтрэх үед алдаа гарлаа."));
-  }
-
-  if (
-    typeof (data as LoginResponse).user_id !== "number" ||
-    typeof (data as LoginResponse).username !== "string" ||
-    typeof (data as LoginResponse).role !== "string"
-  ) {
-    throw new Error("Login response буруу бүтэцтэй байна.");
   }
 
   return data as LoginResponse;
@@ -351,11 +333,7 @@ export async function listSportsApi(userId?: number): Promise<SportItem[]> {
   const res = await fetch(`${API_BASE}/sports-day/sports`, {
     method: "GET",
     headers:
-      typeof userId === "number"
-        ? {
-            "X-User-Id": String(userId),
-          }
-        : undefined,
+      typeof userId === "number" ? { "X-User-Id": String(userId) } : undefined,
   });
 
   const data = await parseJsonSafe<
@@ -368,7 +346,6 @@ export async function listSportsApi(userId?: number): Promise<SportItem[]> {
 
   if (Array.isArray(data)) return data;
   if ("items" in data && Array.isArray(data.items)) return data.items;
-
   return [];
 }
 
@@ -378,11 +355,7 @@ export async function listTeamsApi(userId?: number): Promise<TeamItem[]> {
   const res = await fetch(`${API_BASE}/sports-day/teams`, {
     method: "GET",
     headers:
-      typeof userId === "number"
-        ? {
-            "X-User-Id": String(userId),
-          }
-        : undefined,
+      typeof userId === "number" ? { "X-User-Id": String(userId) } : undefined,
   });
 
   const data = await parseJsonSafe<
@@ -395,7 +368,6 @@ export async function listTeamsApi(userId?: number): Promise<TeamItem[]> {
 
   if (Array.isArray(data)) return data;
   if ("items" in data && Array.isArray(data.items)) return data.items;
-
   return [];
 }
 
@@ -417,17 +389,7 @@ export async function renameMyTeamApi(
     throw new Error(resolveErrorMessage(data, "Failed to rename team."));
   }
 
-  if (
-    typeof data === "object" &&
-    data !== null &&
-    "id" in data &&
-    "code" in data &&
-    "name" in data
-  ) {
-    return data as TeamItem;
-  }
-
-  throw new Error("Rename team response буруу бүтэцтэй байна.");
+  return data as TeamItem;
 }
 
 /* ---------------- Matches ---------------- */
@@ -457,11 +419,7 @@ export async function listMatchesApi(userId?: number): Promise<MatchItem[]> {
   const res = await fetch(`${API_BASE}/sports-day/schedule`, {
     method: "GET",
     headers:
-      typeof userId === "number"
-        ? {
-            "X-User-Id": String(userId),
-          }
-        : undefined,
+      typeof userId === "number" ? { "X-User-Id": String(userId) } : undefined,
   });
 
   const data = await parseJsonSafe<
@@ -474,7 +432,6 @@ export async function listMatchesApi(userId?: number): Promise<MatchItem[]> {
 
   if (Array.isArray(data)) return data;
   if ("items" in data && Array.isArray(data.items)) return data.items;
-
   return [];
 }
 
@@ -497,8 +454,7 @@ export async function setMatchResultApi(
     throw new Error(resolveErrorMessage(data, "Failed to set match result."));
   }
 
-  if (typeof data === "string") return data;
-  return "Result submitted successfully.";
+  return typeof data === "string" ? data : "Result submitted successfully.";
 }
 
 /* ---------------- Standings ---------------- */
@@ -507,11 +463,7 @@ export async function listStandingsApi(userId?: number): Promise<StandingItem[]>
   const res = await fetch(`${API_BASE}/sports-day/standings`, {
     method: "GET",
     headers:
-      typeof userId === "number"
-        ? {
-            "X-User-Id": String(userId),
-          }
-        : undefined,
+      typeof userId === "number" ? { "X-User-Id": String(userId) } : undefined,
   });
 
   const data = await parseJsonSafe<
@@ -524,7 +476,6 @@ export async function listStandingsApi(userId?: number): Promise<StandingItem[]>
 
   if (Array.isArray(data)) return data;
   if ("items" in data && Array.isArray(data.items)) return data.items;
-
   return [];
 }
 
@@ -544,9 +495,7 @@ export async function listMembersApi(params: {
       method: "GET",
       headers:
         typeof params.userId === "number"
-          ? {
-              "X-User-Id": String(params.userId),
-            }
+          ? { "X-User-Id": String(params.userId) }
           : undefined,
     }
   );
@@ -562,7 +511,6 @@ export async function listMembersApi(params: {
   if (Array.isArray(data)) return data;
   if ("items" in data && Array.isArray(data.items)) return data.items;
   if ("players" in data && Array.isArray(data.players)) return data.players;
-
   return [];
 }
 
@@ -576,9 +524,9 @@ export async function bulkAddMembersApi(
     body: JSON.stringify(payload),
   });
 
-  const data = await parseJsonSafe<
-    string | { detail?: string; message?: string }
-  >(res);
+  const data = await parseJsonSafe<string | { detail?: string; message?: string }>(
+    res
+  );
 
   if (!res.ok || data === null) {
     throw new Error(resolveErrorMessage(data, "Failed to add members."));
@@ -597,9 +545,9 @@ export async function bulkSetMembersApi(
     body: JSON.stringify(payload),
   });
 
-  const data = await parseJsonSafe<
-    string | { detail?: string; message?: string }
-  >(res);
+  const data = await parseJsonSafe<string | { detail?: string; message?: string }>(
+    res
+  );
 
   if (!res.ok || data === null) {
     throw new Error(resolveErrorMessage(data, "Failed to set members."));
@@ -618,9 +566,9 @@ export async function bulkRemoveMembersApi(
     body: JSON.stringify(payload),
   });
 
-  const data = await parseJsonSafe<
-    string | { detail?: string; message?: string }
-  >(res);
+  const data = await parseJsonSafe<string | { detail?: string; message?: string }>(
+    res
+  );
 
   if (!res.ok || data === null) {
     throw new Error(resolveErrorMessage(data, "Failed to remove members."));
@@ -653,11 +601,7 @@ export async function updateMemberApi(
   const res = await fetch(`${API_BASE}/sports-day/member/${memberId}`, {
     method: "PUT",
     headers:
-      typeof userId === "number"
-        ? {
-            "X-User-Id": String(userId),
-          }
-        : undefined,
+      typeof userId === "number" ? { "X-User-Id": String(userId) } : undefined,
     body: form,
   });
 
@@ -679,16 +623,12 @@ export async function deleteMemberApi(
   const res = await fetch(`${API_BASE}/sports-day/member/${memberId}`, {
     method: "DELETE",
     headers:
-      typeof userId === "number"
-        ? {
-            "X-User-Id": String(userId),
-          }
-        : undefined,
+      typeof userId === "number" ? { "X-User-Id": String(userId) } : undefined,
   });
 
-  const data = await parseJsonSafe<
-    string | { detail?: string; message?: string }
-  >(res);
+  const data = await parseJsonSafe<string | { detail?: string; message?: string }>(
+    res
+  );
 
   if (!res.ok || data === null) {
     throw new Error(resolveErrorMessage(data, "Failed to delete member."));
@@ -705,9 +645,9 @@ export async function importAllDraftFoldersApi(userId: number): Promise<string> 
     headers: buildAuthHeaders(userId),
   });
 
-  const data = await parseJsonSafe<
-    string | { detail?: string; message?: string }
-  >(res);
+  const data = await parseJsonSafe<string | { detail?: string; message?: string }>(
+    res
+  );
 
   if (!res.ok || data === null) {
     throw new Error(resolveErrorMessage(data, "Failed to import folders."));
@@ -719,9 +659,7 @@ export async function importAllDraftFoldersApi(userId: number): Promise<string> 
 export async function getDraftPoolApi(sportKey: string): Promise<DraftPoolItem[]> {
   const res = await fetch(
     withQuery("/sports-day/draft/pool", { sport: sportKey }),
-    {
-      method: "GET",
-    }
+    { method: "GET" }
   );
 
   const data = await parseJsonSafe<
@@ -734,16 +672,13 @@ export async function getDraftPoolApi(sportKey: string): Promise<DraftPoolItem[]
 
   if (Array.isArray(data)) return data;
   if ("items" in data && Array.isArray(data.items)) return data.items;
-
   return [];
 }
 
 export async function getDraftPicksApi(sportKey: string): Promise<DraftPickItem[]> {
   const res = await fetch(
     withQuery("/sports-day/draft/picks", { sport: sportKey }),
-    {
-      method: "GET",
-    }
+    { method: "GET" }
   );
 
   const data = await parseJsonSafe<
@@ -756,7 +691,6 @@ export async function getDraftPicksApi(sportKey: string): Promise<DraftPickItem[
 
   if (Array.isArray(data)) return data;
   if ("items" in data && Array.isArray(data.items)) return data.items;
-
   return [];
 }
 
@@ -775,7 +709,6 @@ export async function getAllDraftPicksApi(): Promise<DraftPickItem[]> {
 
   if (Array.isArray(data)) return data;
   if ("items" in data && Array.isArray(data.items)) return data.items;
-
   return [];
 }
 
@@ -792,11 +725,7 @@ export async function getDraftStateApi(): Promise<DraftStateResponse | null> {
     throw new Error(resolveErrorMessage(data, "Failed to load draft state."));
   }
 
-  if (typeof data === "object" && data !== null && "status" in data) {
-    return data as DraftStateResponse;
-  }
-
-  return null;
+  return data as DraftStateResponse;
 }
 
 export async function getDraftRosterApi(): Promise<DraftRosterResponse> {
@@ -812,11 +741,7 @@ export async function getDraftRosterApi(): Promise<DraftRosterResponse> {
     throw new Error(resolveErrorMessage(data, "Failed to load draft roster."));
   }
 
-  if (typeof data === "object" && data !== null && "teams" in data) {
-    return data as DraftRosterResponse;
-  }
-
-  return { teams: [] };
+  return data as DraftRosterResponse;
 }
 
 export async function getDraftSummaryApi(): Promise<DraftSummaryResponse | null> {
@@ -832,16 +757,7 @@ export async function getDraftSummaryApi(): Promise<DraftSummaryResponse | null>
     throw new Error(resolveErrorMessage(data, "Failed to load draft summary."));
   }
 
-  if (
-    typeof data === "object" &&
-    data !== null &&
-    "sport_key" in data &&
-    "teams" in data
-  ) {
-    return data as DraftSummaryResponse;
-  }
-
-  return null;
+  return data as DraftSummaryResponse;
 }
 
 export async function getMyDraftTeamApi(
@@ -860,16 +776,7 @@ export async function getMyDraftTeamApi(
     throw new Error(resolveErrorMessage(data, "Failed to load my team draft view."));
   }
 
-  if (
-    typeof data === "object" &&
-    data !== null &&
-    "team_code" in data &&
-    "categories" in data
-  ) {
-    return data as DraftMyTeamResponse;
-  }
-
-  return null;
+  return data as DraftMyTeamResponse;
 }
 
 export async function startDraftApi(
@@ -878,19 +785,16 @@ export async function startDraftApi(
   userId: number
 ): Promise<string> {
   const res = await fetch(
-    withQuery("/sports-day/draft/start", {
-      sport: sportKey,
-      rounds,
-    }),
+    withQuery("/sports-day/draft/start", { sport: sportKey, rounds }),
     {
       method: "POST",
       headers: buildAuthHeaders(userId),
     }
   );
 
-  const data = await parseJsonSafe<
-    string | { detail?: string; message?: string }
-  >(res);
+  const data = await parseJsonSafe<string | { detail?: string; message?: string }>(
+    res
+  );
 
   if (!res.ok || data === null) {
     throw new Error(resolveErrorMessage(data, "Failed to start draft."));
@@ -905,9 +809,9 @@ export async function pauseDraftApi(userId: number): Promise<string> {
     headers: buildAuthHeaders(userId),
   });
 
-  const data = await parseJsonSafe<
-    string | { detail?: string; message?: string }
-  >(res);
+  const data = await parseJsonSafe<string | { detail?: string; message?: string }>(
+    res
+  );
 
   if (!res.ok || data === null) {
     throw new Error(resolveErrorMessage(data, "Failed to pause draft."));
@@ -922,9 +826,9 @@ export async function resumeDraftApi(userId: number): Promise<string> {
     headers: buildAuthHeaders(userId),
   });
 
-  const data = await parseJsonSafe<
-    string | { detail?: string; message?: string }
-  >(res);
+  const data = await parseJsonSafe<string | { detail?: string; message?: string }>(
+    res
+  );
 
   if (!res.ok || data === null) {
     throw new Error(resolveErrorMessage(data, "Failed to resume draft."));
@@ -939,9 +843,9 @@ export async function stopDraftApi(userId: number): Promise<string> {
     headers: buildAuthHeaders(userId),
   });
 
-  const data = await parseJsonSafe<
-    string | { detail?: string; message?: string }
-  >(res);
+  const data = await parseJsonSafe<string | { detail?: string; message?: string }>(
+    res
+  );
 
   if (!res.ok || data === null) {
     throw new Error(resolveErrorMessage(data, "Failed to stop draft."));
@@ -956,9 +860,9 @@ export async function finishDraftApi(userId: number): Promise<string> {
     headers: buildAuthHeaders(userId),
   });
 
-  const data = await parseJsonSafe<
-    string | { detail?: string; message?: string }
-  >(res);
+  const data = await parseJsonSafe<string | { detail?: string; message?: string }>(
+    res
+  );
 
   if (!res.ok || data === null) {
     throw new Error(resolveErrorMessage(data, "Failed to finish draft."));
@@ -972,18 +876,16 @@ export async function resetDraftApi(
   userId: number
 ): Promise<string> {
   const res = await fetch(
-    withQuery("/sports-day/draft/reset", {
-      sport: sportKey,
-    }),
+    withQuery("/sports-day/draft/reset", { sport: sportKey }),
     {
       method: "POST",
       headers: buildAuthHeaders(userId),
     }
   );
 
-  const data = await parseJsonSafe<
-    string | { detail?: string; message?: string }
-  >(res);
+  const data = await parseJsonSafe<string | { detail?: string; message?: string }>(
+    res
+  );
 
   if (!res.ok || data === null) {
     throw new Error(resolveErrorMessage(data, "Failed to reset draft."));
@@ -998,9 +900,9 @@ export async function undoDraftApi(userId: number): Promise<string> {
     headers: buildAuthHeaders(userId),
   });
 
-  const data = await parseJsonSafe<
-    string | { detail?: string; message?: string }
-  >(res);
+  const data = await parseJsonSafe<string | { detail?: string; message?: string }>(
+    res
+  );
 
   if (!res.ok || data === null) {
     throw new Error(resolveErrorMessage(data, "Failed to undo draft action."));
@@ -1023,9 +925,9 @@ export async function chooseDraftPlayerApi(
     }),
   });
 
-  const data = await parseJsonSafe<
-    string | { detail?: string; message?: string }
-  >(res);
+  const data = await parseJsonSafe<string | { detail?: string; message?: string }>(
+    res
+  );
 
   if (!res.ok || data === null) {
     throw new Error(resolveErrorMessage(data, "Failed to choose player."));
@@ -1038,14 +940,12 @@ export async function confirmDraftPickApi(userId: number): Promise<string> {
   const res = await fetch(`${API_BASE}/sports-day/draft/confirm`, {
     method: "POST",
     headers: buildAuthHeaders(userId),
-    body: JSON.stringify({
-      confirm: true,
-    }),
+    body: JSON.stringify({ confirm: true }),
   });
 
-  const data = await parseJsonSafe<
-    string | { detail?: string; message?: string }
-  >(res);
+  const data = await parseJsonSafe<string | { detail?: string; message?: string }>(
+    res
+  );
 
   if (!res.ok || data === null) {
     throw new Error(resolveErrorMessage(data, "Failed to confirm pick."));

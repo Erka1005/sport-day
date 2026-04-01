@@ -1,5 +1,3 @@
-// components/admin/sport-list-card.tsx
-
 import { SportItem } from "@/services/api";
 
 type SportListCardProps = {
@@ -24,7 +22,7 @@ export default function SportListCard({
           </div>
           <h2 className="mt-3 text-xl font-bold text-white">Sports List</h2>
           <p className="mt-2 text-sm leading-6 text-slate-300">
-            Current sports configured in the system.
+            uses_draft тохиргоотой sport-уудын жагсаалт.
           </p>
         </div>
 
@@ -59,16 +57,22 @@ export default function SportListCard({
             >
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <div className="text-lg font-semibold text-white">
-                    {sport.name}
-                  </div>
+                  <div className="text-lg font-semibold text-white">{sport.name}</div>
                   <div className="mt-1 font-mono text-xs text-slate-400">
                     key: {sport.key}
                   </div>
                 </div>
 
-                <div className="inline-flex rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-200">
-                  {sport.scoring_type}
+                <div>
+                  {sport.uses_draft ? (
+                    <span className="inline-flex rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-200">
+                      ✅ Draft
+                    </span>
+                  ) : (
+                    <span className="inline-flex rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-xs font-medium text-amber-200">
+                      ❌ Non-draft
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
