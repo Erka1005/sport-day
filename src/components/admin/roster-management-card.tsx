@@ -344,16 +344,7 @@ export default function RosterManagementCard({
             buttonClassName="bg-gradient-to-r from-cyan-500 to-emerald-500"
           />
 
-          <BulkCard
-            title="Bulk Set"
-            value={setText}
-            onChange={setSetText}
-            placeholder={"Bat-Erdene\nTemuulen\nAnu"}
-            buttonText={actionLoading ? "Processing..." : "Bulk Set"}
-            onSubmit={handleBulkSet}
-            buttonClassName="bg-gradient-to-r from-violet-500 to-cyan-500"
-          />
-
+         
           <BulkCard
             title="Bulk Remove"
             value={removeText}
