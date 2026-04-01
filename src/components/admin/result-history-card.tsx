@@ -1,11 +1,9 @@
-// components/admin/result-history-card.tsx
-
 type ResultHistoryItem = {
   id: string;
-  matchId: number;
-  scoreA: number;
-  scoreB: number;
-  createdAt: string;
+  sportKey: string;
+  sportName: string;
+  savedAt: string;
+  count: number;
   message: string;
 };
 
@@ -22,15 +20,15 @@ export default function ResultHistoryCard({
         <div className="inline-flex rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-200">
           Recent Activity
         </div>
-        <h2 className="mt-3 text-xl font-bold text-white">Submitted Results</h2>
+        <h2 className="mt-3 text-xl font-bold text-white">Saved Result History</h2>
         <p className="mt-2 text-sm leading-6 text-slate-300">
-          Recently submitted match results from this session.
+          Энэ session дээр admin ямар sport-ийн үр дүн хадгалсныг харуулна.
         </p>
       </div>
 
       {items.length === 0 ? (
         <div className="rounded-2xl border border-white/10 bg-black/10 px-4 py-6 text-sm text-slate-300">
-          No result submissions yet.
+          Одоогоор хадгалсан үр дүн алга.
         </div>
       ) : (
         <div className="space-y-3">
@@ -42,13 +40,13 @@ export default function ResultHistoryCard({
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <div className="text-lg font-semibold text-white">
-                    Match #{item.matchId}
+                    {item.sportName}
                   </div>
                   <div className="mt-1 text-sm text-slate-300">
-                    Score: {item.scoreA} : {item.scoreB}
+                    key: {item.sportKey} • {item.count} баг
                   </div>
                   <div className="mt-1 text-xs text-slate-400">
-                    {item.createdAt}
+                    {item.savedAt}
                   </div>
                 </div>
 

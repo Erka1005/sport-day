@@ -1,36 +1,35 @@
 import {
-  DraftRosterResponse,
-  MatchItem,
+  ResultsDashboardResponse,
+  ScheduleItem,
   SportItem,
-  StandingItem,
   TeamItem,
 } from "@/services/api";
-import { resolveMediaUrl } from "@/lib/media";
 
 type Props = {
   sports: SportItem[];
   teams: TeamItem[];
-  matches: MatchItem[];
-  standings: StandingItem[];
-  roster: DraftRosterResponse | null;
+  schedules: ScheduleItem[];
+  dashboard: ResultsDashboardResponse | null;
   loading: boolean;
 };
+
+function getTeamStyle(colorHex?: string | null) {
+  if (!colorHex) return { backgroundColor: "#64748b" };
+
+  return {
+    backgroundColor: colorHex,
+    border:
+      colorHex.toLowerCase() === "#ffffff"
+        ? "1px solid #cbd5e1"
+        : undefined,
+  };
+}
 
 function formatDateTime(value?: string | null) {
   if (!value) return "-";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString("mn-MN");
-}
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((x) => x.trim())
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((x) => x[0]?.toUpperCase() || "")
-    .join("");
 }
 
 function formatSportKey(value: string) {
@@ -42,200 +41,162 @@ function formatSportKey(value: string) {
 export default function PublicOverviewDashboard({
   sports,
   teams,
-  matches,
-  standings,
-  roster,
+  schedules,
+  dashboard,
   loading,
 }: Props) {
-  const completedMatches = matches.filter((m) => m.status === "completed").slice(0, 6);
-  const upcomingMatches = matches.filter((m) => m.status !== "completed").slice(0, 6);
-
-  const totalPlayers =
-    roster?.teams.reduce(
-      (sum, team) =>
-        sum +
-        team.categories.reduce((catSum, category) => catSum + category.players.length, 0),
-      0
-    ) || 0;
+  const leaderboard = dashboard?.teams || [];
+  const sportBreakdown = dashboard?.sports || [];
+  const upcomingSchedules = [...schedules].slice(0, 8);
 
   return (
     <section className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <StatCard label="Төрөл" value={String(sports.length)} accent="cyan" />
-        <StatCard label="Баг" value={String(teams.length)} accent="emerald" />
-        <StatCard label="Тоглолт" value={String(matches.length)} accent="white" />
-        <StatCard label="Дууссан" value={String(completedMatches.length)} accent="amber" />
-        <StatCard label="Тоглогч" value={String(totalPlayers)} accent="cyan" />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Төрөл"
+          value={loading ? "..." : String(sports.length)}
+          accent="cyan"
+        />
+        <StatCard
+          label="Баг"
+          value={loading ? "..." : String(teams.length)}
+          accent="amber"
+        />
+        <StatCard
+          label="Хуваарь"
+          value={loading ? "..." : String(schedules.length)}
+          accent="emerald"
+        />
+        <StatCard
+          label="Standings"
+          value={loading ? "..." : String(leaderboard.length)}
+          accent="white"
+        />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-        <Panel title="Онооны хүснэгт" subtitle="Нийт багуудын байрлал, оноо">
+        <Panel title="Нийт leaderboard" subtitle="Багуудын нийлбэр оноо, байрлал">
           {loading ? (
-            <EmptyState text="Онооны хүснэгтийг ачаалж байна..." />
-          ) : standings.length === 0 ? (
-            <EmptyState text="Одоогоор standings мэдээлэл алга." />
-          ) : (
-            <div className="overflow-hidden rounded-2xl border border-white/10">
-              <div className="grid grid-cols-[0.7fr_1.2fr_0.8fr_0.8fr_0.8fr_0.9fr] bg-white/10 px-4 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-slate-300">
-                <div>#</div>
-                <div>Баг</div>
-                <div>Х</div>
-                <div>Хо</div>
-                <div>Т</div>
-                <div>Оноо</div>
-              </div>
-
-              <div className="divide-y divide-white/10">
-                {standings.map((row, index) => (
-                  <div
-                    key={`${row.team_code}-${index}`}
-                    className="grid grid-cols-[0.7fr_1.2fr_0.8fr_0.8fr_0.8fr_0.9fr] bg-black/10 px-4 py-3 text-sm text-white"
-                  >
-                    <div className="font-bold text-cyan-300">{index + 1}</div>
-                    <div className="font-semibold">{row.team_code}</div>
-                    <div>{row.wins}</div>
-                    <div>{row.losses}</div>
-                    <div>{row.draws}</div>
-                    <div className="font-bold text-amber-300">{row.points}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </Panel>
-
-        <Panel title="Ойрын тоглолтууд" subtitle="Хуваарьтай тоглолтууд">
-          {loading ? (
-            <EmptyState text="Тоглолтуудыг ачаалж байна..." />
-          ) : upcomingMatches.length === 0 ? (
-            <EmptyState text="Ойрын тоглолтын мэдээлэл алга." />
+            <EmptyState text="Leaderboard ачаалж байна..." />
+          ) : leaderboard.length === 0 ? (
+            <EmptyState text="Leaderboard мэдээлэл алга." />
           ) : (
             <div className="space-y-3">
-              {upcomingMatches.map((match) => (
-                <MatchCard key={match.id} match={match} />
-              ))}
-            </div>
-          )}
-        </Panel>
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-        <Panel title="Сүүлийн үр дүн" subtitle="Дууссан тоглолтуудын оноо">
-          {loading ? (
-            <EmptyState text="Үр дүнг ачаалж байна..." />
-          ) : completedMatches.length === 0 ? (
-            <EmptyState text="Одоогоор дууссан тоглолт алга." />
-          ) : (
-            <div className="space-y-3">
-              {completedMatches.map((match) => (
-                <MatchCard key={match.id} match={match} />
-              ))}
-            </div>
-          )}
-        </Panel>
-
-        <Panel title="Багуудын бүрэлдэхүүн" subtitle="Leader болон member товч харагдац">
-          {loading ? (
-            <EmptyState text="Бүрэлдэхүүнийг ачаалж байна..." />
-          ) : !roster || roster.teams.length === 0 ? (
-            <EmptyState text="Бүрэлдэхүүний мэдээлэл алга." />
-          ) : (
-            <div className="space-y-3">
-              {roster.teams.map((team) => (
+              {leaderboard.map((row) => (
                 <div
-                  key={team.team_code}
-                  className="rounded-2xl border border-white/10 bg-black/10 p-4"
+                  key={row.team_code}
+                  className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/10 p-4"
                 >
-                  <div className="text-sm font-bold text-white">БАГ {team.team_code}</div>
-
-                  <div className="mt-3 space-y-3">
-                    {team.categories.slice(0, 3).map((category) => (
-                      <div
-                        key={`${team.team_code}-${category.sport_key}`}
-                        className="rounded-2xl border border-white/10 bg-white/5 p-3"
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="text-sm font-semibold text-white">
-                            {formatSportKey(category.sport_key)}
-                          </div>
-                          <div className="text-xs text-slate-300">
-                            {category.filled}/{category.quota}
-                          </div>
-                        </div>
-
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {category.players.slice(0, 4).map((player) => {
-                            const img = resolveMediaUrl(player.photo_url);
-
-                            return (
-                              <div
-                                key={`${category.sport_key}-${player.employee_name}`}
-                                className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-medium ${
-                                  player.leader
-                                    ? "border-amber-400/20 bg-amber-400/10 text-amber-200"
-                                    : "border-slate-400/20 bg-slate-400/10 text-slate-200"
-                                }`}
-                              >
-                                {img ? (
-                                  <img
-                                    src={img}
-                                    alt={player.employee_name}
-                                    className="h-5 w-5 rounded-full object-cover"
-                                  />
-                                ) : (
-                                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-700 text-[10px] font-bold text-white">
-                                    {initials(player.employee_name) || "U"}
-                                  </span>
-                                )}
-                                <span className="max-w-[90px] truncate">
-                                  {player.employee_name}
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
+                  <div className="flex items-center gap-3">
+                    <span
+                      className="inline-block h-4 w-4 rounded-full"
+                      style={getTeamStyle(row.team_color_hex)}
+                    />
+                    <div>
+                      <div className="text-sm font-semibold text-white">
+                        #{row.overall_rank} {row.team_name}
                       </div>
-                    ))}
+                      <div className="text-xs text-slate-400">{row.team_code}</div>
+                    </div>
+                  </div>
+
+                  <div className="text-sm font-bold text-amber-300">
+                    {row.total_score}
                   </div>
                 </div>
               ))}
             </div>
           )}
         </Panel>
+
+        <Panel title="Ойрын хуваарь" subtitle="Тэмцээнүүдийн тов">
+          {loading ? (
+            <EmptyState text="Хуваарь ачаалж байна..." />
+          ) : upcomingSchedules.length === 0 ? (
+            <EmptyState text="Хуваарь алга." />
+          ) : (
+            <div className="space-y-3">
+              {upcomingSchedules.map((item) => (
+                <div
+                  key={item.id}
+                  className="rounded-2xl border border-white/10 bg-black/10 p-4"
+                >
+                  <div className="text-sm font-semibold text-white">
+                    {item.sport_name || formatSportKey(item.sport_key)}
+                  </div>
+                  <div className="mt-1 text-xs text-slate-400">
+                    {formatDateTime(item.start_at)}
+                  </div>
+                  <div className="mt-1 text-xs text-slate-400">
+                    Байршил: {item.venue || "-"}
+                  </div>
+                  {item.note ? (
+                    <div className="mt-2 text-xs text-slate-300">
+                      Тэмдэглэл: {item.note}
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          )}
+        </Panel>
       </div>
+
+      <Panel
+        title="Sport бүрийн үр дүн"
+        subtitle="Ямар баг хэдэд орсон, ямар оноо авсныг sport тус бүрээр харуулна"
+      >
+        {loading ? (
+          <EmptyState text="Sport results ачаалж байна..." />
+        ) : sportBreakdown.length === 0 ? (
+          <EmptyState text="Sport results мэдээлэл алга." />
+        ) : (
+          <div className="grid gap-6 xl:grid-cols-2">
+            {sportBreakdown.map((sport) => (
+              <div
+                key={sport.sport_key}
+                className="rounded-2xl border border-white/10 bg-black/10 p-4"
+              >
+                <div className="mb-4">
+                  <div className="text-lg font-semibold text-white">
+                    {sport.sport_name}
+                  </div>
+                  <div className="text-xs text-slate-400">{sport.sport_key}</div>
+                </div>
+
+                <div className="space-y-2">
+                  {sport.results.map((row) => (
+                    <div
+                      key={`${sport.sport_key}-${row.team_code}`}
+                      className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span
+                          className="inline-block h-4 w-4 rounded-full"
+                          style={getTeamStyle(row.team_color_hex)}
+                        />
+                        <div className="text-sm text-white">
+                          {row.team_name} ({row.team_code})
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 text-xs">
+                        <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-cyan-200">
+                          Rank: {row.rank}
+                        </span>
+                        <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-2.5 py-1 text-amber-200">
+                          Score: {row.score}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Panel>
     </section>
-  );
-}
-
-function MatchCard({ match }: { match: MatchItem }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-black/10 p-4">
-      <div className="flex items-center justify-between gap-3">
-        <div className="text-sm font-semibold text-white">Тоглолт #{match.id}</div>
-        <span
-          className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
-            match.status === "completed"
-              ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
-              : "border-cyan-400/20 bg-cyan-400/10 text-cyan-200"
-          }`}
-        >
-          {match.status === "completed" ? "Дууссан" : match.status || "Хуваарьтай"}
-        </span>
-      </div>
-
-      <div className="mt-2 text-sm text-slate-300">
-        Баг {match.team_a_id} vs Баг {match.team_b_id}
-      </div>
-
-      <div className="mt-1 text-xs text-slate-400">{formatDateTime(match.start_at)}</div>
-      <div className="mt-1 text-xs text-slate-400">Байршил: {match.venue || "-"}</div>
-
-      {typeof match.score_a === "number" || typeof match.score_b === "number" ? (
-        <div className="mt-2 text-xs font-semibold text-amber-200">
-          Оноо: {match.score_a ?? 0} : {match.score_b ?? 0}
-        </div>
-      ) : null}
-    </div>
   );
 }
 
@@ -264,7 +225,7 @@ function StatCard({
 }: {
   label: string;
   value: string;
-  accent: "cyan" | "emerald" | "amber" | "white";
+  accent: "cyan" | "amber" | "emerald" | "white";
 }) {
   const color =
     accent === "cyan"

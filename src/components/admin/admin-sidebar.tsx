@@ -3,6 +3,7 @@ export type AdminSection =
   | "sports"
   | "schedule"
   | "results"
+  | "standings"
   | "roster"
   | "draft";
 
@@ -15,7 +16,7 @@ const items: { key: AdminSection; label: string; desc: string }[] = [
   {
     key: "overview",
     label: "Ерөнхий хяналт",
-    desc: "Нийт мэдээлэл, хүснэгт, явц",
+    desc: "Нийт мэдээлэл, тойм, хурдан харагдац",
   },
   {
     key: "sports",
@@ -25,12 +26,17 @@ const items: { key: AdminSection; label: string; desc: string }[] = [
   {
     key: "schedule",
     label: "Хуваарь",
-    desc: "Тоглолт үүсгэх, шалгах",
+    desc: "Ямар тэмцээн хэзээ болохыг удирдах",
   },
   {
     key: "results",
-    label: "Үр дүн",
-    desc: "Оноо оруулах, түүх харах",
+    label: "Үр дүн оруулах",
+    desc: "Sport бүрийн rank-ийг бүтнээр хадгалах",
+  },
+  {
+    key: "standings",
+    label: "Standings",
+    desc: "Нийлбэр дүн, leaderboard, breakdown",
   },
   {
     key: "roster",

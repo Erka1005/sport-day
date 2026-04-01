@@ -3,16 +3,14 @@ import { useRouter } from "next/router";
 import PublicOverviewDashboard from "@/components/public/public-overview-dashboard";
 import {
   AuthUser,
-  DraftRosterResponse,
-  MatchItem,
+  ResultsDashboardResponse,
+  ScheduleItem,
   SportItem,
-  StandingItem,
   TeamItem,
   getAuthUser,
-  getDraftRosterApi,
-  listMatchesApi,
+  getResultsDashboardApi,
+  listScheduleApi,
   listSportsApi,
-  listStandingsApi,
   listTeamsApi,
   logout,
 } from "@/services/api";
@@ -23,9 +21,8 @@ export default function UserPage() {
 
   const [sports, setSports] = useState<SportItem[]>([]);
   const [teams, setTeams] = useState<TeamItem[]>([]);
-  const [matches, setMatches] = useState<MatchItem[]>([]);
-  const [standings, setStandings] = useState<StandingItem[]>([]);
-  const [roster, setRoster] = useState<DraftRosterResponse | null>(null);
+  const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
+  const [dashboard, setDashboard] = useState<ResultsDashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -53,27 +50,23 @@ export default function UserPage() {
     setLoading(true);
 
     try {
-      const [sportRows, teamRows, matchRows, standingRows, rosterRows] =
-        await Promise.all([
-          listSportsApi(userId),
-          listTeamsApi(userId),
-          listMatchesApi(userId),
-          listStandingsApi(userId),
-          getDraftRosterApi(),
-        ]);
+      const [sportRows, teamRows, scheduleRows, dashboardRows] = await Promise.all([
+        listSportsApi(userId),
+        listTeamsApi(userId),
+        listScheduleApi(userId),
+        getResultsDashboardApi(userId),
+      ]);
 
       setSports(sportRows);
       setTeams(teamRows);
-      setMatches(matchRows);
-      setStandings(standingRows);
-      setRoster(rosterRows);
+      setSchedules(scheduleRows);
+      setDashboard(dashboardRows);
     } catch (error) {
       console.error("Failed to load public data", error);
       setSports([]);
       setTeams([]);
-      setMatches([]);
-      setStandings([]);
-      setRoster(null);
+      setSchedules([]);
+      setDashboard(null);
     } finally {
       setLoading(false);
     }
@@ -107,7 +100,7 @@ export default function UserPage() {
                 Нийтийн мэдээллийн самбар
               </h1>
               <p className="mt-1 text-sm text-slate-300">
-                Бүх баг, тоглолт, оноо, бүрэлдэхүүний мэдээллийг read-only горимоор харна.
+                Хуваарь, standings, sport бүрийн үр дүнг read-only горимоор харна.
               </p>
             </div>
 
@@ -140,16 +133,15 @@ export default function UserPage() {
                   Тэмцээний нэгдсэн мэдээлэл
                 </h2>
                 <p className="mt-1 text-sm leading-6 text-slate-300">
-                  Одоогийн онооны хүснэгт, ойрын тоглолтууд, сүүлийн үр дүн болон
-                  багуудын бүрэлдэхүүнийг эндээс харна.
+                  Нийт leaderboard, спорт бүрийн үр дүн болон хуваарийг эндээс харна.
                 </p>
               </div>
 
               <button
                 onClick={() => void loadPublicData(user.user_id)}
-                className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm font-medium text-cyan-200"
+                className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/15"
               >
-                {loading ? "Шинэчилж байна..." : "Дахин ачаалах"}
+                {loading ? "Ачаалж байна..." : "Шинэчлэх"}
               </button>
             </div>
           </div>
@@ -157,9 +149,8 @@ export default function UserPage() {
           <PublicOverviewDashboard
             sports={sports}
             teams={teams}
-            matches={matches}
-            standings={standings}
-            roster={roster}
+            schedules={schedules}
+            dashboard={dashboard}
             loading={loading}
           />
         </main>

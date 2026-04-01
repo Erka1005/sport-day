@@ -1,7 +1,5 @@
-// components/endpoint-list-card.tsx
-
 type EndpointItem = {
-  method: "GET" | "POST" | "PUT";
+  method: "GET" | "POST" | "PUT" | "DELETE";
   path: string;
   label: string;
 };
@@ -15,6 +13,7 @@ const methodStyles: Record<EndpointItem["method"], string> = {
   GET: "bg-sky-500/20 text-sky-200 border-sky-400/20",
   POST: "bg-emerald-500/20 text-emerald-200 border-emerald-400/20",
   PUT: "bg-amber-500/20 text-amber-200 border-amber-400/20",
+  DELETE: "bg-rose-500/20 text-rose-200 border-rose-400/20",
 };
 
 export default function EndpointListCard({
@@ -33,7 +32,7 @@ export default function EndpointListCard({
           >
             <div className="flex min-w-0 items-center gap-3">
               <span
-                className={`inline-flex min-w-[60px] justify-center rounded-lg border px-2 py-1 text-xs font-bold ${methodStyles[item.method]}`}
+                className={`inline-flex min-w-[72px] justify-center rounded-lg border px-2 py-1 text-xs font-bold ${methodStyles[item.method]}`}
               >
                 {item.method}
               </span>
@@ -45,9 +44,9 @@ export default function EndpointListCard({
               </div>
             </div>
 
-            <button className="rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-sm text-slate-200 transition hover:bg-white/15">
-              Preview
-            </button>
+            <div className="rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-sm text-slate-200">
+              Endpoint
+            </div>
           </div>
         ))}
       </div>

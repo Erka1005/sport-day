@@ -1,14 +1,14 @@
 import {
+  DashboardTeamItem,
   DraftMyTeamResponse,
-  MatchItem,
-  StandingItem,
+  ScheduleItem,
   TeamItem,
 } from "@/services/api";
 
 type Props = {
   team: TeamItem | null;
-  standings: StandingItem[];
-  matches: MatchItem[];
+  standings: DashboardTeamItem[];
+  schedules: ScheduleItem[];
   myTeam: DraftMyTeamResponse | null;
   loading: boolean;
 };
@@ -20,22 +20,20 @@ function formatDateTime(value?: string | null) {
   return date.toLocaleString("mn-MN");
 }
 
+function formatSportKey(value: string) {
+  return value
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (s) => s.toUpperCase());
+}
+
 export default function CaptainOverviewDashboard({
   team,
   standings,
-  matches,
+  schedules,
   myTeam,
   loading,
 }: Props) {
   const standingRow = standings.find((s) => s.team_code === team?.code) || null;
-  const teamId = team?.id;
-
-  const myMatches = matches.filter(
-    (m) => m.team_a_id === teamId || m.team_b_id === teamId
-  );
-
-  const upcoming = myMatches.filter((m) => m.status !== "completed").slice(0, 5);
-  const completed = myMatches.filter((m) => m.status === "completed").slice(0, 5);
 
   const totalPlayers =
     myTeam?.categories.reduce((sum, cat) => sum + cat.players.length, 0) || 0;
@@ -46,30 +44,76 @@ export default function CaptainOverviewDashboard({
       0
     ) || 0;
 
-  const rank =
-    standingRow ? standings.findIndex((s) => s.team_code === standingRow.team_code) + 1 : "-";
+  const mySportResults = standingRow?.sport_results || [];
+  const topTeams = standings.slice(0, 5);
+  const upcomingSchedules = schedules.slice(0, 5);
 
   return (
     <section className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Миний баг" value={team?.code || "-"} accent="cyan" />
-        <StatCard label="Байр" value={String(rank)} accent="amber" />
+        <StatCard
+          label="Нийт байр"
+          value={standingRow ? String(standingRow.overall_rank) : "-"}
+          accent="amber"
+        />
         <StatCard label="Leader" value={String(totalLeaders)} accent="emerald" />
-        <StatCard label="Нийт тоглогч" value={String(totalPlayers)} accent="white" />
+        <StatCard
+          label="Нийт оноо"
+          value={standingRow ? String(standingRow.total_score) : "-"}
+          accent="white"
+        />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-        <Panel title="Миний багийн үзүүлэлт" subtitle="Оноо, хожил, хожигдол, тэнцээ">
+        <Panel title="Миний багийн standings" subtitle="Нийлбэр дүн болон sport breakdown">
           {loading ? (
             <EmptyState text="Мэдээлэл ачаалж байна..." />
           ) : !standingRow ? (
             <EmptyState text="Энэ багийн standings мэдээлэл алга." />
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <MiniMetric label="Оноо" value={String(standingRow.points)} accent="amber" />
-              <MiniMetric label="Хожил" value={String(standingRow.wins)} accent="emerald" />
-              <MiniMetric label="Хожигдол" value={String(standingRow.losses)} accent="cyan" />
-              <MiniMetric label="Тэнцээ" value={String(standingRow.draws)} accent="white" />
+            <div className="space-y-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <MiniMetric
+                  label="Overall Rank"
+                  value={String(standingRow.overall_rank)}
+                  accent="amber"
+                />
+                <MiniMetric
+                  label="Total Score"
+                  value={String(standingRow.total_score)}
+                  accent="cyan"
+                />
+              </div>
+
+              <div className="space-y-2">
+                {mySportResults.length === 0 ? (
+                  <EmptyState text="Sport breakdown алга." />
+                ) : (
+                  mySportResults.map((item) => (
+                    <div
+                      key={`${standingRow.team_code}-${item.sport_key}`}
+                      className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/10 px-4 py-3"
+                    >
+                      <div>
+                        <div className="text-sm font-semibold text-white">
+                          {item.sport_name || formatSportKey(item.sport_key)}
+                        </div>
+                        <div className="text-xs text-slate-400">{item.sport_key}</div>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <span className="inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-[11px] font-semibold text-cyan-200">
+                          Rank: {item.rank ?? "-"}
+                        </span>
+                        <span className="inline-flex rounded-full border border-amber-400/20 bg-amber-400/10 px-2.5 py-1 text-[11px] font-semibold text-amber-200">
+                          Score: {item.score}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           )}
         </Panel>
@@ -88,7 +132,7 @@ export default function CaptainOverviewDashboard({
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="text-sm font-semibold text-white">
-                      {category.sport_key}
+                      {formatSportKey(category.sport_key)}
                     </div>
                     <div className="text-xs text-slate-300">
                       {category.filled ?? category.players.length}/{category.quota ?? "-"}
@@ -102,72 +146,61 @@ export default function CaptainOverviewDashboard({
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-        <Panel title="Ойрын тоглолтууд" subtitle="Миний багийн дараагийн тоглолтууд">
+        <Panel title="Top 5 standings" subtitle="Нийт leaderboard">
           {loading ? (
-            <EmptyState text="Тоглолтуудыг ачаалж байна..." />
-          ) : upcoming.length === 0 ? (
-            <EmptyState text="Ойрын тоглолт алга." />
+            <EmptyState text="Standings ачаалж байна..." />
+          ) : topTeams.length === 0 ? (
+            <EmptyState text="Standings мэдээлэл алга." />
           ) : (
             <div className="space-y-3">
-              {upcoming.map((match) => (
-                <MatchCard key={match.id} match={match} />
+              {topTeams.map((row) => (
+                <div
+                  key={row.team_code}
+                  className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/10 p-4"
+                >
+                  <div>
+                    <div className="text-sm font-semibold text-white">
+                      #{row.overall_rank} {row.team_name}
+                    </div>
+                    <div className="mt-1 text-xs text-slate-400">{row.team_code}</div>
+                  </div>
+                  <div className="text-sm font-bold text-amber-300">
+                    {row.total_score}
+                  </div>
+                </div>
               ))}
             </div>
           )}
         </Panel>
 
-        <Panel title="Сүүлийн үр дүн" subtitle="Дууссан тоглолтуудын оноо">
+        <Panel title="Ойрын хуваарь" subtitle="Удахгүй болох тэмцээнүүд">
           {loading ? (
-            <EmptyState text="Үр дүнг ачаалж байна..." />
-          ) : completed.length === 0 ? (
-            <EmptyState text="Дууссан тоглолтын мэдээлэл алга." />
+            <EmptyState text="Хуваарь ачаалж байна..." />
+          ) : upcomingSchedules.length === 0 ? (
+            <EmptyState text="Хуваарь алга." />
           ) : (
             <div className="space-y-3">
-              {completed.map((match) => (
-                <MatchCard key={match.id} match={match} />
+              {upcomingSchedules.map((item) => (
+                <div
+                  key={item.id}
+                  className="rounded-2xl border border-white/10 bg-black/10 p-4"
+                >
+                  <div className="text-sm font-semibold text-white">
+                    {item.sport_name || formatSportKey(item.sport_key)}
+                  </div>
+                  <div className="mt-1 text-xs text-slate-400">
+                    {formatDateTime(item.start_at)}
+                  </div>
+                  <div className="mt-1 text-xs text-slate-400">
+                    Байршил: {item.venue || "-"}
+                  </div>
+                </div>
               ))}
             </div>
           )}
         </Panel>
       </div>
     </section>
-  );
-}
-
-function MatchCard({ match }: { match: MatchItem }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-black/10 p-4">
-      <div className="flex items-center justify-between gap-3">
-        <div className="text-sm font-semibold text-white">Тоглолт #{match.id}</div>
-        <span
-          className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
-            match.status === "completed"
-              ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
-              : "border-cyan-400/20 bg-cyan-400/10 text-cyan-200"
-          }`}
-        >
-          {match.status === "completed" ? "Дууссан" : match.status || "Хуваарьтай"}
-        </span>
-      </div>
-
-      <div className="mt-2 text-sm text-slate-300">
-        Баг {match.team_a_id} vs Баг {match.team_b_id}
-      </div>
-
-      <div className="mt-1 text-xs text-slate-400">
-        {formatDateTime(match.start_at)}
-      </div>
-
-      <div className="mt-1 text-xs text-slate-400">
-        Байршил: {match.venue || "-"}
-      </div>
-
-      {typeof match.score_a === "number" || typeof match.score_b === "number" ? (
-        <div className="mt-2 text-xs font-semibold text-amber-200">
-          Оноо: {match.score_a ?? 0} : {match.score_b ?? 0}
-        </div>
-      ) : null}
-    </div>
   );
 }
 

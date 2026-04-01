@@ -4,32 +4,29 @@ import CaptainOverviewDashboard from "@/components/captain/captain-overview-dash
 import MyTeamCard from "@/components/captain/my-team-card";
 import {
   AuthUser,
+  DashboardTeamItem,
   DraftMyTeamResponse,
-  MatchItem,
-  StandingItem,
+  ScheduleItem,
   TeamItem,
   getAuthUser,
   getMyDraftTeamApi,
-  listMatchesApi,
-  listStandingsApi,
+  getResultsDashboardApi,
+  listScheduleApi,
   listTeamsApi,
   logout,
   renameMyTeamApi,
 } from "@/services/api";
 
-/**
- * ✅ backend color_hex шууд ашиглана
- */
 function getTeamStyle(colorHex?: string | null) {
   if (!colorHex) {
-    return { backgroundColor: "#64748b" }; // fallback
+    return { backgroundColor: "#64748b" };
   }
 
   return {
     backgroundColor: colorHex,
     border:
       colorHex.toLowerCase() === "#ffffff"
-        ? "1px solid #cbd5f5"
+        ? "1px solid #cbd5e1"
         : undefined,
   };
 }
@@ -41,8 +38,8 @@ export default function CaptainPage() {
   const [team, setTeam] = useState<TeamItem | null>(null);
   const [teamLoading, setTeamLoading] = useState(true);
 
-  const [standings, setStandings] = useState<StandingItem[]>([]);
-  const [matches, setMatches] = useState<MatchItem[]>([]);
+  const [standings, setStandings] = useState<DashboardTeamItem[]>([]);
+  const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [myTeam, setMyTeam] = useState<DraftMyTeamResponse | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(true);
 
@@ -98,19 +95,19 @@ export default function CaptainPage() {
     setOverviewLoading(true);
 
     try {
-      const [standingRows, matchRows, myTeamRows] = await Promise.all([
-        listStandingsApi(userId),
-        listMatchesApi(userId),
+      const [dashboardRows, scheduleRows, myTeamRows] = await Promise.all([
+        getResultsDashboardApi(userId),
+        listScheduleApi(userId),
         getMyDraftTeamApi(userId),
       ]);
 
-      setStandings(standingRows);
-      setMatches(matchRows);
+      setStandings(dashboardRows.teams || []);
+      setSchedules(scheduleRows || []);
       setMyTeam(myTeamRows);
     } catch (error) {
       console.error("Failed to load captain overview", error);
       setStandings([]);
-      setMatches([]);
+      setSchedules([]);
       setMyTeam(null);
     } finally {
       setOverviewLoading(false);
@@ -150,6 +147,7 @@ export default function CaptainPage() {
       setTeam(updatedTeam);
       setTeamNameInput(updatedTeam.name);
       setRenameSuccess("Багийн нэр амжилттай шинэчлэгдлээ.");
+      await loadCaptainOverview(user.user_id);
     } catch (err) {
       setRenameError(
         err instanceof Error
@@ -172,13 +170,7 @@ export default function CaptainPage() {
     return "";
   }, [team, user]);
 
-  /**
-   * ✅ STYLE ашиглана
-   */
-  const teamStyle = useMemo(
-    () => getTeamStyle(team?.color_hex),
-    [team]
-  );
+  const teamStyle = useMemo(() => getTeamStyle(team?.color_hex), [team]);
 
   if (!user) {
     return (
@@ -223,7 +215,7 @@ export default function CaptainPage() {
 
               <button
                 onClick={handleLogout}
-                className="rounded-2xl bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600"
+                className="rounded-2xl bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-600"
               >
                 Гарах
               </button>
@@ -232,30 +224,66 @@ export default function CaptainPage() {
         </header>
 
         <main className="mx-auto max-w-7xl px-6 py-8">
-          <div className="mb-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-            <div className="rounded-[28px] border border-white/10 bg-white/10 p-6 backdrop-blur-xl">
-              <div className="flex items-center gap-3">
-                <span
-                  className="inline-block h-4 w-4 rounded-full"
-                  style={teamStyle}
-                />
-                <h2 className="text-2xl font-black text-white">
-                  {team?.name || "Loading..."}
-                </h2>
+          <div className="mb-6 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+            <CaptainOverviewDashboard
+              team={team}
+              standings={standings}
+              schedules={schedules}
+              myTeam={myTeam}
+              loading={overviewLoading || teamLoading}
+            />
+
+            <div className="space-y-6">
+              <div className="rounded-[28px] border border-white/10 bg-white/10 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.25)] backdrop-blur-xl">
+                <div className="mb-4">
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">
+                    Багийн тохиргоо
+                  </div>
+                  <h2 className="mt-2 text-2xl font-black text-white">
+                    Багийн нэр солих
+                  </h2>
+                </div>
+
+                <div className="space-y-4">
+                  <input
+                    type="text"
+                    value={teamNameInput}
+                    onChange={(e) => setTeamNameInput(e.target.value)}
+                    placeholder="Багийн нэр"
+                    className="w-full rounded-2xl border border-white/10 bg-black/10 px-4 py-3 text-white outline-none"
+                  />
+
+                  {renameError ? (
+                    <div className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                      {renameError}
+                    </div>
+                  ) : null}
+
+                  {renameSuccess ? (
+                    <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+                      {renameSuccess}
+                    </div>
+                  ) : null}
+
+                  <button
+                    onClick={() => void handleRenameTeam()}
+                    disabled={renameLoading}
+                    className="w-full rounded-2xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-3 text-sm font-bold text-white transition disabled:opacity-70"
+                  >
+                    {renameLoading ? "Хадгалж байна..." : "Багийн нэр шинэчлэх"}
+                  </button>
+
+                  <button
+                    onClick={() => router.push("/standings")}
+                    className="w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
+                  >
+                    Бүтэн standings харах
+                  </button>
+                </div>
               </div>
+
+              <MyTeamCard userId={user.user_id} />
             </div>
-          </div>
-
-          <CaptainOverviewDashboard
-            team={team}
-            standings={standings}
-            matches={matches}
-            myTeam={myTeam}
-            loading={overviewLoading}
-          />
-
-          <div className="mt-6">
-            <MyTeamCard userId={user.user_id} />
           </div>
         </main>
       </div>

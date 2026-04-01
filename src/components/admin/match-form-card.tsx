@@ -1,45 +1,44 @@
-// components/admin/match-form-card.tsx
-
-import { FormEvent, useState } from "react";
-import { CreateMatchPayload, SportItem } from "@/services/api";
+import { FormEvent, useEffect, useState } from "react";
+import { CreateSchedulePayload, SportItem } from "@/services/api";
 
 type MatchFormCardProps = {
   sports: SportItem[];
-  onSubmit: (payload: CreateMatchPayload) => Promise<void>;
+  onSubmit: (payload: CreateSchedulePayload) => Promise<void>;
 };
 
 export default function MatchFormCard({
   sports,
   onSubmit,
 }: MatchFormCardProps) {
-  const [form, setForm] = useState<CreateMatchPayload>({
-    sport_id: 0,
+  const [form, setForm] = useState<CreateSchedulePayload>({
+    sport_key: "",
     start_at: "",
     venue: "",
-    team_a_id: 0,
-    team_b_id: 0,
+    date_label: "",
+    note: "",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  useEffect(() => {
+    if (!form.sport_key && sports.length > 0) {
+      setForm((prev) => ({ ...prev, sport_key: sports[0].key }));
+    }
+  }, [sports, form.sport_key]);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
     setSuccess("");
 
-    if (!form.sport_id) {
-      setError("Please select a sport.");
+    if (!form.sport_key) {
+      setError("Sport сонгоно уу.");
       return;
     }
 
-    if (!form.team_a_id || !form.team_b_id) {
-      setError("Please enter both team IDs.");
-      return;
-    }
-
-    if (form.team_a_id === form.team_b_id) {
-      setError("Team A and Team B cannot be the same.");
+    if (!form.start_at) {
+      setError("Start time оруулна уу.");
       return;
     }
 
@@ -47,24 +46,24 @@ export default function MatchFormCard({
 
     try {
       await onSubmit({
-        sport_id: form.sport_id,
+        sport_key: form.sport_key,
         start_at: form.start_at,
-        venue: form.venue.trim(),
-        team_a_id: form.team_a_id,
-        team_b_id: form.team_b_id,
+        venue: form.venue?.trim() || "",
+        date_label: form.date_label?.trim() || "",
+        note: form.note?.trim() || "",
       });
 
-      setSuccess("Match created successfully.");
+      setSuccess("Schedule амжилттай үүслээ.");
       setForm({
-        sport_id: sports[0]?.id ?? 0,
+        sport_key: sports[0]?.key ?? "",
         start_at: "",
         venue: "",
-        team_a_id: 0,
-        team_b_id: 0,
+        date_label: "",
+        note: "",
       });
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Failed to create match.";
+        err instanceof Error ? err.message : "Schedule үүсгэхэд алдаа гарлаа.";
       setError(message);
     } finally {
       setLoading(false);
@@ -77,9 +76,9 @@ export default function MatchFormCard({
         <div className="inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-200">
           Admin Action
         </div>
-        <h2 className="mt-3 text-xl font-bold text-white">Create Match</h2>
+        <h2 className="mt-3 text-xl font-bold text-white">Create Schedule</h2>
         <p className="mt-2 text-sm leading-6 text-slate-300">
-          Schedule a new match for the selected sport.
+          Ямар тэмцээн хэзээ болохыг бүртгэнэ.
         </p>
       </div>
 
@@ -89,23 +88,23 @@ export default function MatchFormCard({
             Sport
           </label>
           <select
-            value={form.sport_id}
+            value={form.sport_key}
             onChange={(e) =>
               setForm((prev) => ({
                 ...prev,
-                sport_id: Number(e.target.value),
+                sport_key: e.target.value,
               }))
             }
             className="w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-400/60 focus:bg-white/15"
             required
           >
-            <option value={0} className="bg-slate-900 text-white">
+            <option value="" className="bg-slate-900 text-white">
               Select sport
             </option>
             {sports.map((sport) => (
               <option
                 key={sport.id}
-                value={sport.id}
+                value={sport.key}
                 className="bg-slate-900 text-white"
               >
                 {sport.name}
@@ -129,62 +128,51 @@ export default function MatchFormCard({
           />
         </div>
 
-        <div>
-          <label className="mb-2 block text-sm font-medium text-slate-200">
-            Venue
-          </label>
-          <input
-            type="text"
-            value={form.venue}
-            onChange={(e) =>
-              setForm((prev) => ({ ...prev, venue: e.target.value }))
-            }
-            placeholder="e.g. Main Arena"
-            className="w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white placeholder:text-slate-400 outline-none transition focus:border-cyan-400/60 focus:bg-white/15"
-            required
-          />
-        </div>
-
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-200">
-              Team A ID
+              Venue
             </label>
             <input
-              type="number"
-              min={1}
-              value={form.team_a_id || ""}
+              type="text"
+              value={form.venue}
               onChange={(e) =>
-                setForm((prev) => ({
-                  ...prev,
-                  team_a_id: Number(e.target.value),
-                }))
+                setForm((prev) => ({ ...prev, venue: e.target.value }))
               }
-              placeholder="e.g. 1"
-              className="w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white placeholder:text-slate-400 outline-none transition focus:border-emerald-400/60 focus:bg-white/15"
-              required
+              placeholder="e.g. Main Arena"
+              className="w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white placeholder:text-slate-400 outline-none transition focus:border-cyan-400/60 focus:bg-white/15"
             />
           </div>
 
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-200">
-              Team B ID
+              Date Label
             </label>
             <input
-              type="number"
-              min={1}
-              value={form.team_b_id || ""}
+              type="text"
+              value={form.date_label}
               onChange={(e) =>
-                setForm((prev) => ({
-                  ...prev,
-                  team_b_id: Number(e.target.value),
-                }))
+                setForm((prev) => ({ ...prev, date_label: e.target.value }))
               }
-              placeholder="e.g. 2"
-              className="w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white placeholder:text-slate-400 outline-none transition focus:border-emerald-400/60 focus:bg-white/15"
-              required
+              placeholder="e.g. 2026-04-01"
+              className="w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white placeholder:text-slate-400 outline-none transition focus:border-cyan-400/60 focus:bg-white/15"
             />
           </div>
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-200">
+            Note
+          </label>
+          <input
+            type="text"
+            value={form.note}
+            onChange={(e) =>
+              setForm((prev) => ({ ...prev, note: e.target.value }))
+            }
+            placeholder="optional"
+            className="w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white placeholder:text-slate-400 outline-none transition focus:border-cyan-400/60 focus:bg-white/15"
+          />
         </div>
 
         {error ? (
@@ -204,7 +192,7 @@ export default function MatchFormCard({
           disabled={loading}
           className="w-full rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 px-4 py-3.5 text-sm font-bold text-white shadow-[0_14px_30px_rgba(16,185,129,0.25)] transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-70"
         >
-          {loading ? "Creating..." : "Create Match"}
+          {loading ? "Creating..." : "Create Schedule"}
         </button>
       </form>
     </div>

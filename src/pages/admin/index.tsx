@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import AdminLayout from "@/components/admin/admin-layout";
 import AdminSidebar, { AdminSection } from "@/components/admin/admin-sidebar";
@@ -10,32 +10,36 @@ import MatchListCard from "@/components/admin/match-list-card";
 import ResultFormCard from "@/components/admin/result-form-card";
 import ResultHistoryCard from "@/components/admin/result-history-card";
 import RosterManagementCard from "@/components/admin/roster-management-card";
+import StandingsDashboardCard from "@/components/admin/standings-dashboard-card";
 import {
   AuthUser,
-  CreateMatchPayload,
+  BulkSetSportResultItem,
+  CreateSchedulePayload,
   CreateSportPayload,
   DraftRosterResponse,
-  MatchItem,
+  ResultsDashboardResponse,
+  ScheduleItem,
   SportItem,
-  StandingItem,
+  SportResultRow,
   TeamItem,
-  createMatchApi,
+  bulkSetSportResultsApi,
+  createScheduleApi,
   createSportApi,
   getAuthUser,
   getDraftRosterApi,
-  listMatchesApi,
+  getResultsDashboardApi,
+  getSportResultsApi,
+  listScheduleApi,
   listSportsApi,
-  listStandingsApi,
   listTeamsApi,
-  setMatchResultApi,
 } from "@/services/api";
 
 type ResultHistoryItem = {
   id: string;
-  matchId: number;
-  scoreA: number;
-  scoreB: number;
-  createdAt: string;
+  sportKey: string;
+  sportName: string;
+  savedAt: string;
+  count: number;
   message: string;
 };
 
@@ -49,7 +53,7 @@ export default function AdminPage() {
   const [sportsLoading, setSportsLoading] = useState(true);
   const [sportsError, setSportsError] = useState("");
 
-  const [matches, setMatches] = useState<MatchItem[]>([]);
+  const [matches, setMatches] = useState<ScheduleItem[]>([]);
   const [matchesLoading, setMatchesLoading] = useState(true);
   const [matchesError, setMatchesError] = useState("");
 
@@ -57,13 +61,17 @@ export default function AdminPage() {
   const [teamsLoading, setTeamsLoading] = useState(true);
   const [teamsError, setTeamsError] = useState("");
 
-  const [standings, setStandings] = useState<StandingItem[]>([]);
+  const [resultsDashboard, setResultsDashboard] =
+    useState<ResultsDashboardResponse | null>(null);
   const [standingsLoading, setStandingsLoading] = useState(true);
   const [standingsError, setStandingsError] = useState("");
 
   const [roster, setRoster] = useState<DraftRosterResponse | null>(null);
   const [rosterLoading, setRosterLoading] = useState(true);
   const [rosterError, setRosterError] = useState("");
+
+  const [selectedSportResults, setSelectedSportResults] = useState<SportResultRow[]>([]);
+  const [selectedSportResultsLoading, setSelectedSportResultsLoading] = useState(false);
 
   const [resultHistory, setResultHistory] = useState<ResultHistoryItem[]>([]);
 
@@ -88,9 +96,9 @@ export default function AdminPage() {
 
     void Promise.all([
       loadSports(user.user_id),
-      loadMatches(user.user_id),
+      loadSchedule(user.user_id),
       loadTeams(user.user_id),
-      loadStandings(user.user_id),
+      loadResultsDashboard(user.user_id),
       loadRoster(),
     ]);
   }, [user]);
@@ -109,15 +117,15 @@ export default function AdminPage() {
     }
   }
 
-  async function loadMatches(userId: number) {
+  async function loadSchedule(userId: number) {
     setMatchesLoading(true);
     setMatchesError("");
 
     try {
-      const items = await listMatchesApi(userId);
+      const items = await listScheduleApi(userId);
       setMatches(items);
     } catch (err) {
-      setMatchesError(err instanceof Error ? err.message : "Failed to load matches.");
+      setMatchesError(err instanceof Error ? err.message : "Failed to load schedule.");
     } finally {
       setMatchesLoading(false);
     }
@@ -137,21 +145,41 @@ export default function AdminPage() {
     }
   }
 
-  async function loadStandings(userId: number) {
+  async function loadResultsDashboard(userId: number) {
     setStandingsLoading(true);
     setStandingsError("");
 
     try {
-      const items = await listStandingsApi(userId);
-      setStandings(items);
+      const items = await getResultsDashboardApi(userId);
+      setResultsDashboard(items);
     } catch (err) {
       setStandingsError(
         err instanceof Error ? err.message : "Failed to load standings."
       );
+      setResultsDashboard(null);
     } finally {
       setStandingsLoading(false);
     }
   }
+
+  const loadSportResults = useCallback(
+    async (sportKey: string) => {
+      if (!user || !sportKey) return;
+
+      setSelectedSportResultsLoading(true);
+
+      try {
+        const response = await getSportResultsApi(sportKey, user.user_id);
+        setSelectedSportResults(response.results || []);
+      } catch (err) {
+        console.error("Failed to load sport results", err);
+        setSelectedSportResults([]);
+      } finally {
+        setSelectedSportResultsLoading(false);
+      }
+    },
+    [user]
+  );
 
   async function loadRoster() {
     setRosterLoading(true);
@@ -175,48 +203,43 @@ export default function AdminPage() {
     setSports((prev) => [created, ...prev]);
   }
 
-  async function handleCreateMatch(payload: CreateMatchPayload) {
+  async function handleCreateSchedule(payload: CreateSchedulePayload) {
     if (!user) throw new Error("User not found.");
 
-    const created = await createMatchApi(payload, user.user_id);
+    const created = await createScheduleApi(payload, user.user_id);
     setMatches((prev) => [created, ...prev]);
   }
 
-  async function handleSetResult(
-    matchId: number,
-    payload: { score_a: number; score_b: number }
+  async function handleBulkSaveResults(
+    sportKey: string,
+    results: BulkSetSportResultItem[]
   ) {
     if (!user) throw new Error("User not found.");
 
-    const message = await setMatchResultApi(matchId, payload, user.user_id);
+    const message = await bulkSetSportResultsApi(
+      {
+        sport_key: sportKey,
+        results,
+      },
+      user.user_id
+    );
+
+    const sport = sports.find((x) => x.key === sportKey);
 
     setResultHistory((prev) => [
       {
-        id: `${Date.now()}-${matchId}`,
-        matchId,
-        scoreA: payload.score_a,
-        scoreB: payload.score_b,
-        createdAt: new Date().toLocaleString(),
+        id: `${Date.now()}-${sportKey}`,
+        sportKey,
+        sportName: sport?.name || sportKey,
+        savedAt: new Date().toLocaleString("mn-MN"),
+        count: results.length,
         message,
       },
       ...prev,
     ]);
 
-    setMatches((prev) =>
-      prev.map((item) =>
-        item.id === matchId
-          ? {
-              ...item,
-              score_a: payload.score_a,
-              score_b: payload.score_b,
-              status: "completed",
-            }
-          : item
-      )
-    );
-
-    await loadStandings(user.user_id);
-    await loadRoster();
+    await loadSportResults(sportKey);
+    await loadResultsDashboard(user.user_id);
 
     return message;
   }
@@ -243,8 +266,8 @@ export default function AdminPage() {
         <AdminOverviewDashboard
           sports={sports}
           teams={teams}
-          matches={matches}
-          standings={standings}
+          matches={matches as never}
+          standings={(resultsDashboard?.teams || []) as never}
           roster={roster}
           sportsLoading={sportsLoading}
           matchesLoading={matchesLoading}
@@ -273,14 +296,13 @@ export default function AdminPage() {
 
       {activeSection === "schedule" && (
         <section className="grid gap-6 xl:grid-cols-2">
-          <MatchFormCard sports={sports} onSubmit={handleCreateMatch} />
+          <MatchFormCard sports={sports} onSubmit={handleCreateSchedule} />
           <MatchListCard
             matches={matches}
-            sports={sports}
             loading={matchesLoading}
             error={matchesError}
             onRefresh={async () => {
-              await loadMatches(user.user_id);
+              await loadSchedule(user.user_id);
             }}
           />
         </section>
@@ -288,8 +310,28 @@ export default function AdminPage() {
 
       {activeSection === "results" && (
         <section className="grid gap-6 xl:grid-cols-2">
-          <ResultFormCard onSubmit={handleSetResult} />
+          <ResultFormCard
+            sports={sports}
+            teams={teams}
+            currentResults={selectedSportResults}
+            loadingCurrent={selectedSportResultsLoading}
+            onLoad={loadSportResults}
+            onSubmit={handleBulkSaveResults}
+          />
           <ResultHistoryCard items={resultHistory} />
+        </section>
+      )}
+
+      {activeSection === "standings" && (
+        <section>
+          <StandingsDashboardCard
+            data={resultsDashboard}
+            loading={standingsLoading}
+            error={standingsError}
+            onRefresh={async () => {
+              await loadResultsDashboard(user.user_id);
+            }}
+          />
         </section>
       )}
 
@@ -308,7 +350,7 @@ export default function AdminPage() {
           <div className="rounded-3xl border border-dashed border-cyan-400/20 bg-cyan-500/10 p-8 backdrop-blur-xl">
             <h3 className="text-xl font-bold text-white">Draft panel</h3>
             <p className="mt-2 text-sm text-slate-300">
-              Uses_draft=true sport дээр pool, choose, confirm UI-г дараагийн
+              uses_draft=true sport дээр pool, choose, confirm UI-г дараагийн
               алхмаар холбоно.
             </p>
           </div>
