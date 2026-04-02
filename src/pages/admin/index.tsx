@@ -70,8 +70,11 @@ export default function AdminPage() {
   const [rosterLoading, setRosterLoading] = useState(true);
   const [rosterError, setRosterError] = useState("");
 
-  const [selectedSportResults, setSelectedSportResults] = useState<SportResultRow[]>([]);
-  const [selectedSportResultsLoading, setSelectedSportResultsLoading] = useState(false);
+  const [selectedSportResults, setSelectedSportResults] = useState<
+    SportResultRow[]
+  >([]);
+  const [selectedSportResultsLoading, setSelectedSportResultsLoading] =
+    useState(false);
 
   const [resultHistory, setResultHistory] = useState<ResultHistoryItem[]>([]);
 
@@ -111,7 +114,9 @@ export default function AdminPage() {
       const items = await listSportsApi(userId);
       setSports(items);
     } catch (err) {
-      setSportsError(err instanceof Error ? err.message : "Failed to load sports.");
+      setSportsError(
+        err instanceof Error ? err.message : "Failed to load sports.",
+      );
     } finally {
       setSportsLoading(false);
     }
@@ -125,7 +130,9 @@ export default function AdminPage() {
       const items = await listScheduleApi(userId);
       setMatches(items);
     } catch (err) {
-      setMatchesError(err instanceof Error ? err.message : "Failed to load schedule.");
+      setMatchesError(
+        err instanceof Error ? err.message : "Failed to load schedule.",
+      );
     } finally {
       setMatchesLoading(false);
     }
@@ -139,7 +146,9 @@ export default function AdminPage() {
       const items = await listTeamsApi(userId);
       setTeams(items);
     } catch (err) {
-      setTeamsError(err instanceof Error ? err.message : "Failed to load teams.");
+      setTeamsError(
+        err instanceof Error ? err.message : "Failed to load teams.",
+      );
     } finally {
       setTeamsLoading(false);
     }
@@ -154,7 +163,7 @@ export default function AdminPage() {
       setResultsDashboard(items);
     } catch (err) {
       setStandingsError(
-        err instanceof Error ? err.message : "Failed to load standings."
+        err instanceof Error ? err.message : "Failed to load standings.",
       );
       setResultsDashboard(null);
     } finally {
@@ -178,7 +187,7 @@ export default function AdminPage() {
         setSelectedSportResultsLoading(false);
       }
     },
-    [user]
+    [user],
   );
 
   async function loadRoster() {
@@ -189,7 +198,9 @@ export default function AdminPage() {
       const data = await getDraftRosterApi();
       setRoster(data);
     } catch (err) {
-      setRosterError(err instanceof Error ? err.message : "Failed to load roster.");
+      setRosterError(
+        err instanceof Error ? err.message : "Failed to load roster.",
+      );
       setRoster(null);
     } finally {
       setRosterLoading(false);
@@ -212,7 +223,7 @@ export default function AdminPage() {
 
   async function handleBulkSaveResults(
     sportKey: string,
-    results: BulkSetSportResultItem[]
+    results: BulkSetSportResultItem[],
   ) {
     if (!user) throw new Error("User not found.");
 
@@ -221,7 +232,7 @@ export default function AdminPage() {
         sport_key: sportKey,
         results,
       },
-      user.user_id
+      user.user_id,
     );
 
     const sport = sports.find((x) => x.key === sportKey);
@@ -263,19 +274,19 @@ export default function AdminPage() {
       }
     >
       {activeSection === "overview" && (
-      <AdminOverviewDashboard
-  sports={sports}
-  teams={teams}
-  matches={matches}
-  standings={resultsDashboard?.teams || []}
-  resultsDashboard={resultsDashboard}
-  sportsLoading={sportsLoading}
-  matchesLoading={matchesLoading}
-  teamsLoading={teamsLoading}
-  standingsLoading={standingsLoading}
-  teamsError={teamsError}
-  standingsError={standingsError}
-/>
+        <AdminOverviewDashboard
+          sports={sports}
+          teams={teams}
+          matches={matches}
+          standings={resultsDashboard?.teams || []}
+          resultsDashboard={resultsDashboard}
+          sportsLoading={sportsLoading}
+          matchesLoading={matchesLoading}
+          teamsLoading={teamsLoading}
+          standingsLoading={standingsLoading}
+          teamsError={teamsError}
+          standingsError={standingsError}
+        />
       )}
 
       {activeSection === "sports" && (

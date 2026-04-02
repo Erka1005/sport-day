@@ -186,7 +186,7 @@ export default function CaptainPage() {
 
       <div className="relative z-10">
         <header className="border-b border-white/10 bg-white/5 backdrop-blur-xl">
-          <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+          <div className="mx-auto flex  items-center justify-between px-20 py-4">
             <div>
               <div className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-200">
                 MMS Sports Day
@@ -223,7 +223,7 @@ export default function CaptainPage() {
           </div>
         </header>
 
-        <main className="mx-auto max-w-7xl px-6 py-8">
+        <main className="mx-auto px-20 py-8">
           <div className="mb-6 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
             <CaptainOverviewDashboard
               team={team}

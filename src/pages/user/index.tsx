@@ -91,7 +91,7 @@ export default function UserPage() {
 
       <div className="relative z-10">
         <header className="border-b border-white/10 bg-white/5 backdrop-blur-xl">
-          <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+          <div className="mx-auto flex items-center justify-between px-20 py-4">
             <div>
               <div className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">
                 MMS Sports Day
@@ -122,7 +122,7 @@ export default function UserPage() {
           </div>
         </header>
 
-        <main className="mx-auto max-w-7xl px-6 py-8">
+        <main className="mx-auto px-20 py-8">
           <div className="mb-6 rounded-[28px] border border-white/10 bg-white/10 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.25)] backdrop-blur-xl">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>

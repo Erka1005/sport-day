@@ -101,7 +101,7 @@ export default function AdminOverviewDashboard({
           accent="white"
         />
         <StatCard
-          label="Standings"
+          label="Хүснэгтэд орсон баг"
           value={standingsLoading ? "..." : String(safeStandings.length)}
           accent="cyan"
         />
@@ -199,112 +199,7 @@ export default function AdminOverviewDashboard({
         </Panel>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-        <Panel title="Нийт standings" subtitle="Багуудын байрлал болон нийлбэр оноо">
-          {teamsError ? (
-            <ErrorBox text={teamsError} />
-          ) : standingsError ? (
-            <ErrorBox text={standingsError} />
-          ) : standingsLoading ? (
-            <EmptyState text="Standings ачаалж байна..." />
-          ) : safeStandings.length === 0 ? (
-            <EmptyState text="Standings мэдээлэл алга." />
-          ) : (
-            <div className="overflow-hidden rounded-2xl border border-white/10">
-              <div className="grid grid-cols-[0.8fr_1.7fr_1fr] bg-white/10 px-4 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-slate-300">
-                <div>#</div>
-                <div>Баг</div>
-                <div>Оноо</div>
-              </div>
-
-              <div className="divide-y divide-white/10">
-                {safeStandings.map((row) => (
-                  <div
-                    key={row.team_code}
-                    className="grid grid-cols-[0.8fr_1.7fr_1fr] items-center bg-black/10 px-4 py-3 text-sm text-white"
-                  >
-                    <div className="font-bold text-cyan-300">
-                      {row.overall_rank}
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <span
-                        className="inline-block h-4 w-4 rounded-full"
-                        style={getTeamStyle(row.team_color_hex)}
-                      />
-                      <div>
-                        <div className="font-semibold">{row.team_name}</div>
-                        <div className="text-xs text-slate-400">
-                          {row.team_code}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="font-bold text-amber-300">
-                      {row.total_score}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </Panel>
-
-        <Panel
-          title="Sport breakdown"
-          subtitle="Sport бүр дээр ямар баг хэдэд орсныг харуулна"
-        >
-          {standingsError ? (
-            <ErrorBox text={standingsError} />
-          ) : standingsLoading ? (
-            <EmptyState text="Sport breakdown ачаалж байна..." />
-          ) : safeSportBreakdown.length === 0 ? (
-            <EmptyState text="Sport breakdown мэдээлэл алга." />
-          ) : (
-            <div className="space-y-4">
-              {safeSportBreakdown.map((sport) => (
-                <div
-                  key={sport.sport_key}
-                  className="rounded-2xl border border-white/10 bg-black/10 p-4"
-                >
-                  <div className="mb-4">
-                    <div className="text-sm font-bold text-white">
-                      {sport.sport_name}
-                    </div>
-                    <div className="mt-1 text-xs text-slate-400">
-                      {sport.sport_key}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    {sport.results.map((row) => (
-                      <div
-                        key={`${sport.sport_key}-${row.team_code}`}
-                        className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2"
-                      >
-                        <div className="flex items-center gap-3">
-                          <span
-                            className="inline-block h-4 w-4 rounded-full"
-                            style={getTeamStyle(row.team_color_hex)}
-                          />
-                          <div className="text-sm text-white">
-                            {row.team_name} ({row.team_code})
-                          </div>
-                        </div>
-
-                        <div className="flex gap-2">
-                          <InlineBadge tone="cyan">Rank: {row.rank}</InlineBadge>
-                          <InlineBadge tone="amber">Score: {row.score}</InlineBadge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Panel>
-      </div>
+      
     </section>
   );
 }

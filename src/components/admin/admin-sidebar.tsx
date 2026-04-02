@@ -35,7 +35,7 @@ const items: { key: AdminSection; label: string; desc: string }[] = [
   },
   {
     key: "standings",
-    label: "Standings",
+    label: "Хүснэгт",
     desc: "Нийлбэр дүн, leaderboard, breakdown",
   },
   {

@@ -30,7 +30,7 @@ export default function StandingsDashboardCard({
         <div className="mb-5 flex items-center justify-between gap-4">
           <div>
             <div className="inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-200">
-              Standings
+              Хүснэгтийн мэдээлэл
             </div>
             <h2 className="mt-3 text-xl font-bold text-white">
               Нийлбэр дүнгийн хүснэгт

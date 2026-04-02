@@ -2,23 +2,29 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
+import { Noto_Sans } from "next/font/google";
 import { AuthUser, getAuthUser, loginApi, saveAuthUser } from "@/services/api";
 
+const notoSans = Noto_Sans({
+  subsets: ["latin", "cyrillic"],
+  weight: ["400", "500", "600", "700", "800", "900"],
+});
+
 const floatingStats = [
-  { label: "Teams", value: "8" },
-  { label: "Participants", value: "240+" },
-  { label: "Activities", value: "08" },
+  { label: "Баг", value: "8" },
+  { label: "Оролцогч", value: "240+" },
+  { label: "Төрөл", value: "08" },
 ];
 
 const highlights = [
-  "Fast access to the event portal",
-  "Verified member-only sign in",
-  "Secure access to your personal dashboard",
+  "Тэмцээний портал руу хурдан нэвтрэх боломж",
+  "Баталгаажсан хэрэглэгчийн нэвтрэлт",
+  "Хувийн самбартаа аюулгүй хандах боломж",
 ];
 
 const DEFAULT_PUBLIC_USER: AuthUser = {
   user_id: 0,
-  username: "User",
+  username: "Хэрэглэгч",
   role: "user",
 };
 
@@ -34,9 +40,9 @@ export default function LoginPage() {
   const currentGreeting = useMemo(() => {
     const hour = new Date().getHours();
 
-    if (hour < 12) return "Good morning";
-    if (hour < 18) return "Good afternoon";
-    return "Good evening";
+    if (hour < 12) return "Өглөөний мэнд";
+    if (hour < 18) return "Өдрийн мэнд";
+    return "Оройн мэнд";
   }, []);
 
   useEffect(() => {
@@ -55,16 +61,14 @@ export default function LoginPage() {
       const user = await loginApi({ username, password });
 
       if (!["user", "admin", "captain"].includes(user.role)) {
-        throw new Error("Unknown access profile returned from server.");
+        throw new Error("Серверээс үл мэдэгдэх эрхийн төрөл буцаж ирлээ.");
       }
 
       saveAuthUser(user);
       router.replace("/");
     } catch (err) {
       const message =
-        err instanceof Error
-          ? err.message
-          : "Something went wrong while signing in.";
+        err instanceof Error ? err.message : "Нэвтрэх үед алдаа гарлаа.";
       setError(message);
     } finally {
       setLoading(false);
@@ -82,7 +86,7 @@ export default function LoginPage() {
       const message =
         err instanceof Error
           ? err.message
-          : "Something went wrong while opening public access.";
+          : "Нийтийн хандалт нээх үед алдаа гарлаа.";
       setError(message);
     } finally {
       setGuestLoading(false);
@@ -90,7 +94,9 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#07111f] text-white">
+    <div
+      className={`${notoSans.className} relative min-h-screen overflow-hidden bg-[#07111f] text-white`}
+    >
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.22),transparent_28%),radial-gradient(circle_at_80%_20%,rgba(16,185,129,0.20),transparent_24%),radial-gradient(circle_at_50%_100%,rgba(234,179,8,0.14),transparent_30%)]" />
 
       <div className="absolute inset-0 opacity-[0.08] bg-[linear-gradient(rgba(255,255,255,0.8)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.8)_1px,transparent_1px)] [background-size:42px_42px]" />
@@ -102,22 +108,22 @@ export default function LoginPage() {
       <div className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col lg:flex-row">
         <section className="flex w-full flex-col justify-center px-6 py-10 sm:px-10 lg:w-[56%] lg:px-14">
           <div className="max-w-2xl">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200 backdrop-blur-md">
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-semibold tracking-[0.14em] text-cyan-200 backdrop-blur-md">
               <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
-              MMS Sports Day Portal
+              MMS Спорт Өдөрлөг Портал
             </div>
 
-            <h1 className="text-4xl font-black leading-tight sm:text-5xl lg:text-6xl">
+            <h1 className="text-lg font-black leading-tight sm:text-5xl lg:text-4xl">
               {currentGreeting},
               <br />
               <span className="bg-gradient-to-r from-cyan-300 via-white to-emerald-300 bg-clip-text text-transparent">
-                Welcome to MMS Sports Day
+                MMS Спорт Өдөрлөгийн албан ёсны вэб портал д тавтай морилно уу!
               </span>
             </h1>
 
             <p className="mt-5 max-w-xl text-sm leading-7 text-slate-300 sm:text-base">
-              Access schedules, updates, team information, and personalized event
-              features through the official MMS Sports Day web portal.
+              Албан ёсны MMS Sports Day вэб порталаар дамжуулан хуваарь, мэдээ,
+              багийн мэдээлэл болон хувь хэрэглэгчийн боломжууддаа хандаарай.
             </p>
 
             <div className="mt-8 grid max-w-xl grid-cols-1 gap-4 sm:grid-cols-3">
@@ -132,7 +138,7 @@ export default function LoginPage() {
                   <div className="text-2xl font-extrabold text-white">
                     {item.value}
                   </div>
-                  <div className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-300">
+                  <div className="mt-1 text-xs tracking-[0.12em] text-slate-300">
                     {item.label}
                   </div>
                 </div>
@@ -158,18 +164,18 @@ export default function LoginPage() {
 
             <div className="mt-10 hidden gap-4 md:grid md:max-w-2xl md:grid-cols-3">
               <PortalMiniCard
-                title="Schedules"
-                sub="Live event flow"
+                title="Хуваарь"
+                sub="Тэмцээний явц"
                 accent="cyan"
               />
               <PortalMiniCard
-                title="Updates"
-                sub="Latest announcements"
+                title="Мэдээлэл"
+                sub="Сүүлийн зарлал"
                 accent="emerald"
               />
               <PortalMiniCard
-                title="Access"
-                sub="Private member area"
+                title="Хандалт"
+                sub="Хувийн бүс"
                 accent="amber"
               />
             </div>
@@ -186,40 +192,32 @@ export default function LoginPage() {
               <div className="relative">
                 <div className="mb-6 flex items-start justify-between gap-4">
                   <div>
-                    <div className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">
-                      Private Entry
+                    <div className="text-xs font-semibold tracking-[0.14em] text-cyan-200">
+                      Хувийн нэвтрэх хэсэг
                     </div>
                     <h2 className="mt-2 text-3xl font-black tracking-tight text-white">
-                      Sign In
+                      Нэвтрэх
                     </h2>
                     <p className="mt-2 text-sm leading-6 text-slate-300">
-                      Admin and captain accounts can sign in here. Public users can
-                      continue directly below.
+                      Админ болон багийн ахлагчийн эрхтэй хэрэглэгчид эндээс
+                      нэвтэрнэ. Энгийн хэрэглэгчид доороос шууд үргэлжлүүлж болно.
                     </p>
                   </div>
 
-                  <div className="rounded-2xl border border-white/10 bg-white/10 px-5 py-2 text-right backdrop-blur-md">
-                    <div className="text-[10px] uppercase tracking-[0.16em] text-slate-300">
-                      Status
-                    </div>
-                    <div className="flex items-center gap-2 text-sm font-semibold text-white">
-                      <span className="inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-400" />
-                      Active
-                    </div>
-                  </div>
+                 
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-5">
                   <div>
                     <label className="mb-2 block text-sm font-medium text-slate-200">
-                      Username
+                      Хэрэглэгчийн нэр
                     </label>
                     <div className="group rounded-2xl border border-white/10 bg-white/10 px-4 py-3 transition focus-within:border-cyan-400/60 focus-within:bg-white/15">
                       <input
                         type="text"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
-                        placeholder="Enter admin or captain username"
+                        placeholder="Админ эсвэл ахлагчийн нэрээ оруулна уу"
                         className="w-full bg-transparent text-sm text-white placeholder:text-slate-400 outline-none"
                       />
                     </div>
@@ -227,14 +225,14 @@ export default function LoginPage() {
 
                   <div>
                     <label className="mb-2 block text-sm font-medium text-slate-200">
-                      Password
+                      Нууц үг
                     </label>
                     <div className="group rounded-2xl border border-white/10 bg-white/10 px-4 py-3 transition focus-within:border-emerald-400/60 focus-within:bg-white/15">
                       <input
                         type="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        placeholder="Enter your password"
+                        placeholder="Нууц үгээ оруулна уу"
                         className="w-full bg-transparent text-sm text-white placeholder:text-slate-400 outline-none"
                       />
                     </div>
@@ -242,11 +240,9 @@ export default function LoginPage() {
 
                   <div className="flex items-center justify-between gap-4">
                     <div className="text-xs text-slate-300">
-                      Public visitors can continue without sign-in.
+                      Зочин хэрэглэгчид нэвтрэхгүйгээр үргэлжлүүлж болно.
                     </div>
-                    <div className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[11px] font-medium text-slate-200">
-                      Public access enabled
-                    </div>
+                  
                   </div>
 
                   {error ? (
@@ -265,12 +261,12 @@ export default function LoginPage() {
                       {loading ? (
                         <>
                           <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                          Signing in...
+                          Нэвтэрч байна...
                         </>
                       ) : (
                         <>
                           <span className="inline-block h-2.5 w-2.5 rounded-full bg-white shadow-[0_0_16px_rgba(255,255,255,0.95)]" />
-                          Sign In 
+                          Нэвтрэх
                         </>
                       )}
                     </span>
@@ -279,8 +275,8 @@ export default function LoginPage() {
 
                 <div className="my-5 flex items-center gap-3">
                   <div className="h-px flex-1 bg-white/10" />
-                  <span className="text-xs uppercase tracking-[0.18em] text-slate-400">
-                    or
+                  <span className="text-xs tracking-[0.14em] text-slate-400">
+                    эсвэл
                   </span>
                   <div className="h-px flex-1 bg-white/10" />
                 </div>
@@ -294,17 +290,17 @@ export default function LoginPage() {
                   {guestLoading ? (
                     <span className="flex items-center gap-3">
                       <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                      Opening public portal...
+                      Зочин хэрэглэгчээр нэвтрэх...
                     </span>
                   ) : (
-                    "Continue as Public User"
+                    "Зочин хэрэглэгчээр үргэлжлүүлэх"
                   )}
                 </button>
 
                 <div className="mt-6 grid grid-cols-3 gap-3">
-                  <InfoPill title="Portal" desc="Public" />
-                  <InfoPill title="Access" desc="Guest" />
-                  <InfoPill title="Event" desc="Live" />
+                  <InfoPill title="Портал" desc="Нийтэд" />
+                  <InfoPill title="Хандалт" desc="Зочин" />
+                  <InfoPill title="Тэмцээн" desc="Идэвхтэй" />
                 </div>
               </div>
             </div>
@@ -359,9 +355,7 @@ function PortalMiniCard({
     <div
       className={`rounded-2xl border bg-gradient-to-br p-4 backdrop-blur-md ${accentMap[accent]}`}
     >
-      <div className="text-sm font-bold uppercase tracking-[0.18em]">
-        {title}
-      </div>
+      <div className="text-sm font-bold tracking-[0.14em]">{title}</div>
       <div className="mt-2 text-sm text-slate-200">{sub}</div>
     </div>
   );
@@ -370,7 +364,7 @@ function PortalMiniCard({
 function InfoPill({ title, desc }: { title: string; desc: string }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-center backdrop-blur-md">
-      <div className="text-xs font-bold uppercase tracking-[0.14em] text-white">
+      <div className="text-xs font-bold tracking-[0.12em] text-white">
         {title}
       </div>
       <div className="mt-1 text-[11px] text-slate-300">{desc}</div>
