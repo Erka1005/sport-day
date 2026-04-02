@@ -81,11 +81,11 @@ export default function StandingsDashboardCard({
                       style={getTeamStyle(team.team_color_hex)}
                     />
                     <div>
-                      <div className="font-semibold">{team.team_name}</div>
+                      <div className="font-semibold text-lg">{team.team_name}</div>
                       <div className="text-xs text-slate-400">{team.team_code}</div>
                     </div>
                   </div>
-                  <div className="font-black text-amber-300">{team.total_score}</div>
+                  <div className="font-black text-amber-300 text-2xl">{team.total_score}</div>
                 </div>
               ))}
             </div>

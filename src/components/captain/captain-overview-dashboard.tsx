@@ -34,13 +34,6 @@ function getTeamStyle(colorHex?: string | null) {
   };
 }
 
-function formatDateTime(value?: string | null) {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString("mn-MN");
-}
-
 function formatSportKey(value?: string | null) {
   if (!value) return "Төрөлгүй";
   if (value === "members") return "Багийн гишүүд";
@@ -48,6 +41,65 @@ function formatSportKey(value?: string | null) {
   return value
     .replaceAll("_", " ")
     .replace(/\b\w/g, (s) => s.toUpperCase());
+}
+
+function formatScheduleDate(item: ScheduleItem) {
+  if (item.date_label) return item.date_label;
+  if (item.start_at) {
+    const date = new Date(item.start_at);
+    if (!Number.isNaN(date.getTime())) {
+      return date.toLocaleDateString("mn-MN");
+    }
+    return item.start_at;
+  }
+  return "-";
+}
+
+function formatScheduleTime(item: ScheduleItem) {
+  const startTime =
+    (item as ScheduleItem & { start_time?: string | null }).start_time ||
+    (() => {
+      if (!item.start_at) return null;
+      const date = new Date(item.start_at);
+      if (Number.isNaN(date.getTime())) return item.start_at;
+      return date.toLocaleTimeString("mn-MN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+    })();
+
+  const endTime = (item as ScheduleItem & { end_time?: string | null }).end_time;
+
+  if (startTime && endTime) return `${startTime} - ${endTime}`;
+  if (startTime) return startTime;
+  if (endTime) return endTime;
+  return "-";
+}
+
+function formatScheduleStatus(status?: string | null) {
+  if (!status) return "Тодорхойгүй";
+  if (status === "scheduled") return "Товлогдсон";
+  if (status === "ongoing") return "Явагдаж байна";
+  if (status === "completed") return "Дууссан";
+  if (status === "cancelled") return "Цуцлагдсан";
+  return status;
+}
+
+function getStatusClass(status?: string | null) {
+  if (status === "scheduled") {
+    return "border-cyan-400/20 bg-cyan-400/10 text-cyan-200";
+  }
+  if (status === "ongoing") {
+    return "border-emerald-400/20 bg-emerald-400/10 text-emerald-200";
+  }
+  if (status === "completed") {
+    return "border-amber-400/20 bg-amber-400/10 text-amber-200";
+  }
+  if (status === "cancelled") {
+    return "border-rose-400/20 bg-rose-400/10 text-rose-200";
+  }
+  return "border-slate-400/20 bg-slate-400/10 text-slate-200";
 }
 
 function initials(name: string) {
@@ -182,7 +234,7 @@ export default function CaptainOverviewDashboard({
       </div>
 
       <Panel
-        title="Бүх standings"
+        title="Хүснэгт"
         subtitle="Бүх багийн нийлбэр дүнгийн хүснэгт"
       >
         {loading ? (
@@ -217,7 +269,7 @@ export default function CaptainOverviewDashboard({
                       style={getTeamStyle(row.team_color_hex)}
                     />
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold text-white">
+                      <div className="truncate text-lg font-semibold text-white">
                         {row.team_name}
                       </div>
                       <div className="text-xs text-slate-400">
@@ -227,7 +279,7 @@ export default function CaptainOverviewDashboard({
                     </div>
                   </div>
 
-                  <div className="text-right text-sm font-black text-amber-300">
+                  <div className="text-right text-2xl font-black text-amber-300">
                     {row.total_score}
                   </div>
                 </div>
@@ -238,7 +290,7 @@ export default function CaptainOverviewDashboard({
       </Panel>
 
       <Panel
-        title="Багийн бүх гишүүд"
+        title="Багийн гишүүд"
         subtitle="Багийн бүх бүртгэлтэй гишүүдийн жагсаалт"
       >
         {loading ? (
@@ -355,15 +407,34 @@ export default function CaptainOverviewDashboard({
                   key={item.id}
                   className="rounded-2xl border border-white/10 bg-black/10 p-4"
                 >
-                  <div className="text-sm font-semibold text-white">
-                    {item.sport_name || formatSportKey(item.sport_key)}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="text-sm font-semibold text-white">
+                      {item.sport_name || formatSportKey(item.sport_key)}
+                    </div>
+                    <span
+                      className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${getStatusClass(
+                        item.status
+                      )}`}
+                    >
+                      {formatScheduleStatus(item.status)}
+                    </span>
                   </div>
-                  <div className="mt-1 text-xs text-slate-400">
-                    Огноо, цаг: {formatDateTime(item.start_at)}
+
+                  <div className="mt-2 text-xs text-slate-300">
+                    Огноо: {formatScheduleDate(item)}
+                  </div>
+                  <div className="mt-1 text-xs text-slate-300">
+                    Цаг: {formatScheduleTime(item)}
                   </div>
                   <div className="mt-1 text-xs text-slate-400">
                     Байршил: {item.venue || "-"}
                   </div>
+
+                  {item.note ? (
+                    <div className="mt-2 text-xs text-slate-300">
+                      Тэмдэглэл: {item.note}
+                    </div>
+                  ) : null}
                 </div>
               ))}
             </div>
