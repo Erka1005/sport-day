@@ -1,16 +1,21 @@
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { Noto_Sans } from "next/font/google";
 import {
   SportItem,
   TeamItem,
   TeamMemberItem,
   bulkAddMembersApi,
   bulkRemoveMembersApi,
-  bulkSetMembersApi,
   deleteMemberApi,
   listMembersApi,
   updateMemberApi,
 } from "@/services/api";
 import { resolveMediaUrl } from "@/lib/media";
+
+const notoSans = Noto_Sans({
+  subsets: ["latin", "cyrillic"],
+  weight: ["400", "500", "600", "700", "800"],
+});
 
 type Props = {
   userId: number;
@@ -54,7 +59,6 @@ export default function RosterManagementCard({
   const [sportKey, setSportKey] = useState("");
 
   const [addText, setAddText] = useState("");
-  const [setText, setSetText] = useState("");
   const [removeText, setRemoveText] = useState("");
 
   const [players, setPlayers] = useState<TeamMemberItem[]>([]);
@@ -91,7 +95,7 @@ export default function RosterManagementCard({
       });
       setPlayers(items);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Roster ачаалахад алдаа гарлаа.");
+      setError(err instanceof Error ? err.message : "Бүрэлдэхүүн ачаалахад алдаа гарлаа.");
       setPlayers([]);
     } finally {
       setLoading(false);
@@ -111,8 +115,8 @@ export default function RosterManagementCard({
 
   async function handleBulkAdd() {
     const names = parseLines(addText);
-    if (!canSubmit) return setError("Team болон sport сонгоно уу.");
-    if (names.length === 0) return setError("Нэмэх хүмүүсийн нэрээ оруулна уу.");
+    if (!canSubmit) return setError("Баг болон төрлөө сонгоно уу.");
+    if (names.length === 0) return setError("Нэмэх хүмүүсийн нэрийг оруулна уу.");
 
     setActionLoading(true);
     setError("");
@@ -127,31 +131,7 @@ export default function RosterManagementCard({
       setAddText("");
       await loadRoster();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Bulk add хийхэд алдаа гарлаа.");
-    } finally {
-      setActionLoading(false);
-    }
-  }
-
-  async function handleBulkSet() {
-    const names = parseLines(setText);
-    if (!canSubmit) return setError("Team болон sport сонгоно уу.");
-    if (names.length === 0) return setError("Set хийх хүмүүсийн нэрээ оруулна уу.");
-
-    setActionLoading(true);
-    setError("");
-    setSuccess("");
-
-    try {
-      const message = await bulkSetMembersApi(
-        { team_code: teamCode, sport_key: sportKey, members: names },
-        userId
-      );
-      setSuccess(message);
-      setSetText("");
-      await loadRoster();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Bulk set хийхэд алдаа гарлаа.");
+      setError(err instanceof Error ? err.message : "Олуулж нэмэх үед алдаа гарлаа.");
     } finally {
       setActionLoading(false);
     }
@@ -159,8 +139,8 @@ export default function RosterManagementCard({
 
   async function handleBulkRemove() {
     const names = parseLines(removeText);
-    if (!canSubmit) return setError("Team болон sport сонгоно уу.");
-    if (names.length === 0) return setError("Устгах хүмүүсийн нэрээ оруулна уу.");
+    if (!canSubmit) return setError("Баг болон төрлөө сонгоно уу.");
+    if (names.length === 0) return setError("Устгах хүмүүсийн нэрийг оруулна уу.");
 
     setActionLoading(true);
     setError("");
@@ -175,14 +155,14 @@ export default function RosterManagementCard({
       setRemoveText("");
       await loadRoster();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Bulk remove хийхэд алдаа гарлаа.");
+      setError(err instanceof Error ? err.message : "Олуулж устгах үед алдаа гарлаа.");
     } finally {
       setActionLoading(false);
     }
   }
 
   async function handleDelete(memberId: number) {
-    const ok = window.confirm("Энэ member-ийг устгах уу?");
+    const ok = window.confirm("Энэ гишүүнийг устгах уу?");
     if (!ok) return;
 
     setActionLoading(true);
@@ -194,7 +174,7 @@ export default function RosterManagementCard({
       setSuccess(message);
       await loadRoster();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Member устгахад алдаа гарлаа.");
+      setError(err instanceof Error ? err.message : "Гишүүн устгах үед алдаа гарлаа.");
     } finally {
       setActionLoading(false);
     }
@@ -243,8 +223,8 @@ export default function RosterManagementCard({
 
   async function handleSaveEdit() {
     if (!editing) return;
-    if (!editing.employee_name.trim()) return setError("Employee name required.");
-    if (!editing.sport_key.trim()) return setError("Sport key required.");
+    if (!editing.employee_name.trim()) return setError("Ажилтны нэр шаардлагатай.");
+    if (!editing.sport_key.trim()) return setError("Төрлийн түлхүүр шаардлагатай.");
 
     setEditLoading(true);
     setError("");
@@ -267,7 +247,7 @@ export default function RosterManagementCard({
       closeEditModal();
       await loadRoster();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Member засах үед алдаа гарлаа.");
+      setError(err instanceof Error ? err.message : "Гишүүний мэдээлэл засах үед алдаа гарлаа.");
     } finally {
       setEditLoading(false);
     }
@@ -275,23 +255,23 @@ export default function RosterManagementCard({
 
   return (
     <>
-      <div className="space-y-6">
+      <div className={`${notoSans.className} space-y-6`}>
         <div className="rounded-3xl border border-white/10 bg-white/10 p-6 backdrop-blur-xl">
-          <h2 className="text-xl font-bold text-white">Roster Management</h2>
+          <h2 className="text-xl font-bold text-white">Бүрэлдэхүүний удирдлага</h2>
           <p className="mt-2 text-sm text-slate-300">
-            Team member-үүдийг bulk add, bulk set, bulk remove, edit, delete хийнэ.
+            Багийн гишүүдийг олноор нэмэх, олноор хасах, засах, устгах үйлдлүүдийг эндээс хийнэ.
           </p>
 
           <div className="mt-5 grid gap-4 md:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-200">Team</label>
+              <label className="mb-2 block text-sm font-medium text-slate-200">Баг</label>
               <select
                 value={teamCode}
                 onChange={(e) => setTeamCode(e.target.value)}
                 className="w-full rounded-2xl border border-white/10 bg-black/10 px-4 py-3 text-white outline-none"
               >
                 <option value="" className="bg-slate-900 text-white">
-                  Select team
+                  Баг сонгох
                 </option>
                 {teams.map((team) => (
                   <option key={team.id} value={team.code} className="bg-slate-900 text-white">
@@ -302,14 +282,14 @@ export default function RosterManagementCard({
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-200">Sport</label>
+              <label className="mb-2 block text-sm font-medium text-slate-200">Төрөл</label>
               <select
                 value={sportKey}
                 onChange={(e) => setSportKey(e.target.value)}
                 className="w-full rounded-2xl border border-white/10 bg-black/10 px-4 py-3 text-white outline-none"
               >
                 <option value="" className="bg-slate-900 text-white">
-                  Select sport
+                  Төрөл сонгох
                 </option>
                 {sports.map((sport) => (
                   <option key={sport.id} value={sport.key} className="bg-slate-900 text-white">
@@ -335,22 +315,21 @@ export default function RosterManagementCard({
 
         <div className="grid gap-6 xl:grid-cols-3">
           <BulkCard
-            title="Bulk Add"
+            title="Олуулж нэмэх"
             value={addText}
             onChange={setAddText}
             placeholder={"Bat-Erdene\nTemuulen\nAnu"}
-            buttonText={actionLoading ? "Processing..." : "Bulk Add"}
+            buttonText={actionLoading ? "Боловсруулж байна..." : "Олуулж нэмэх"}
             onSubmit={handleBulkAdd}
             buttonClassName="bg-gradient-to-r from-cyan-500 to-emerald-500"
           />
 
-         
           <BulkCard
-            title="Bulk Remove"
+            title="Олуулж устгах"
             value={removeText}
             onChange={setRemoveText}
             placeholder={"Temuulen\nAnu"}
-            buttonText={actionLoading ? "Processing..." : "Bulk Remove"}
+            buttonText={actionLoading ? "Боловсруулж байна..." : "Олуулж устгах"}
             onSubmit={handleBulkRemove}
             buttonClassName="bg-gradient-to-r from-rose-500 to-orange-500"
           />
@@ -359,7 +338,7 @@ export default function RosterManagementCard({
         <div className="rounded-3xl border border-white/10 bg-white/10 p-6 backdrop-blur-xl">
           <div className="mb-5 flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-bold text-white">Current Members</h3>
+              <h3 className="text-lg font-bold text-white">Одоогийн бүрэлдэхүүн</h3>
               <p className="mt-1 text-sm text-slate-300">
                 {teamCode || "-"} / {sportKey || "-"}
               </p>
@@ -369,17 +348,17 @@ export default function RosterManagementCard({
               onClick={() => void loadRoster()}
               className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/15"
             >
-              Refresh
+              Дахин ачаалах
             </button>
           </div>
 
           {loading ? (
             <div className="rounded-2xl border border-white/10 bg-black/10 px-4 py-6 text-sm text-slate-300">
-              Loading roster...
+              Бүрэлдэхүүн ачаалж байна...
             </div>
           ) : players.length === 0 ? (
             <div className="rounded-2xl border border-white/10 bg-black/10 px-4 py-6 text-sm text-slate-300">
-              Одоогоор member алга.
+              Одоогоор гишүүн алга.
             </div>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -422,23 +401,17 @@ export default function RosterManagementCard({
                         <div className="mt-2 flex flex-wrap gap-2">
                           {player.leader ? (
                             <span className="inline-flex rounded-full border border-amber-400/20 bg-amber-400/10 px-2.5 py-1 text-[11px] font-semibold text-amber-200">
-                              ⭐ Leader
+                              ⭐ Ахлагч
                             </span>
                           ) : (
                             <span className="inline-flex rounded-full border border-slate-400/20 bg-slate-400/10 px-2.5 py-1 text-[11px] font-semibold text-slate-200">
-                              Member
+                              Гишүүн
                             </span>
                           )}
                         </div>
 
                         {player.note ? (
                           <div className="mt-2 text-xs text-slate-400">{player.note}</div>
-                        ) : null}
-
-                        {imageUrl ? (
-                          <div className="mt-2 truncate text-[11px] text-slate-500">
-                            {imageUrl}
-                          </div>
                         ) : null}
                       </div>
                     </div>
@@ -448,14 +421,14 @@ export default function RosterManagementCard({
                         onClick={() => openEditModal(player)}
                         className="rounded-xl bg-cyan-500 px-3 py-2 text-xs font-semibold text-white hover:bg-cyan-600"
                       >
-                        Edit
+                        Засах
                       </button>
 
                       <button
                         onClick={() => void handleDelete(player.id)}
                         className="rounded-xl bg-red-500 px-3 py-2 text-xs font-semibold text-white hover:bg-red-600"
                       >
-                        Delete
+                        Устгах
                       </button>
                     </div>
                   </div>
@@ -467,13 +440,13 @@ export default function RosterManagementCard({
       </div>
 
       {editing ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+        <div className={`${notoSans.className} fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4`}>
           <div className="w-full max-w-2xl rounded-3xl border border-white/10 bg-[#07111f] p-6 shadow-2xl">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-xl font-bold text-white">Edit Member</h3>
+                <h3 className="text-xl font-bold text-white">Гишүүн засах</h3>
                 <p className="mt-1 text-sm text-slate-300">
-                  Name, sport, leader, note, photo шинэчилнэ.
+                  Нэр, төрөл, ахлагч эсэх, тайлбар, зургийг шинэчилнэ.
                 </p>
               </div>
 
@@ -481,13 +454,13 @@ export default function RosterManagementCard({
                 onClick={closeEditModal}
                 className="rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-sm text-white hover:bg-white/15"
               >
-                Close
+                Хаах
               </button>
             </div>
 
             <div className="grid gap-5 md:grid-cols-[180px_1fr]">
               <div>
-                <div className="mb-3 text-sm font-medium text-slate-200">Preview</div>
+                <div className="mb-3 text-sm font-medium text-slate-200">Урьдчилан харах</div>
 
                 {editPreview ? (
                   <img
@@ -511,7 +484,7 @@ export default function RosterManagementCard({
               <div className="space-y-4">
                 <div>
                   <label className="mb-2 block text-sm font-medium text-slate-200">
-                    Employee Name
+                    Ажилтны нэр
                   </label>
                   <input
                     type="text"
@@ -525,7 +498,7 @@ export default function RosterManagementCard({
 
                 <div>
                   <label className="mb-2 block text-sm font-medium text-slate-200">
-                    Sport Key
+                    Төрөл
                   </label>
                   <select
                     value={editing.sport_key}
@@ -544,14 +517,14 @@ export default function RosterManagementCard({
 
                 <div>
                   <label className="mb-2 block text-sm font-medium text-slate-200">
-                    Note
+                    Тайлбар
                   </label>
                   <textarea
                     rows={3}
                     value={editing.note}
                     onChange={(e) => setEditing({ ...editing, note: e.target.value })}
                     className="w-full rounded-2xl border border-white/10 bg-black/10 px-4 py-3 text-white outline-none"
-                    placeholder="Optional note"
+                    placeholder="Нэмэлт тайлбар"
                   />
                 </div>
 
@@ -564,13 +537,13 @@ export default function RosterManagementCard({
                     className="h-4 w-4"
                   />
                   <label htmlFor="leader-checkbox" className="text-sm font-medium text-slate-200">
-                    Leader
+                    Ахлагч
                   </label>
                 </div>
 
                 <div>
                   <label className="mb-2 block text-sm font-medium text-slate-200">
-                    Upload Photo
+                    Зураг оруулах
                   </label>
                   <input
                     type="file"
@@ -587,7 +560,7 @@ export default function RosterManagementCard({
                 onClick={closeEditModal}
                 className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-semibold text-white hover:bg-white/15"
               >
-                Cancel
+                Болих
               </button>
 
               <button
@@ -595,7 +568,7 @@ export default function RosterManagementCard({
                 disabled={editLoading}
                 className="rounded-2xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-5 py-3 text-sm font-bold text-white disabled:opacity-60"
               >
-                {editLoading ? "Saving..." : "Save Changes"}
+                {editLoading ? "Хадгалж байна..." : "Өөрчлөлт хадгалах"}
               </button>
             </div>
           </div>

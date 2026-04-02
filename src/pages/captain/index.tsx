@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
+import { Noto_Sans } from "next/font/google";
 import CaptainOverviewDashboard from "@/components/captain/captain-overview-dashboard";
 import MyTeamCard from "@/components/captain/my-team-card";
 import {
@@ -8,14 +9,21 @@ import {
   DraftMyTeamResponse,
   ScheduleItem,
   TeamItem,
+  TeamMemberItem,
   getAuthUser,
   getMyDraftTeamApi,
   getResultsDashboardApi,
+  listMembersApi,
   listScheduleApi,
   listTeamsApi,
   logout,
   renameMyTeamApi,
 } from "@/services/api";
+
+const notoSans = Noto_Sans({
+  subsets: ["latin", "cyrillic"],
+  weight: ["400", "500", "600", "700", "800"],
+});
 
 function getTeamStyle(colorHex?: string | null) {
   if (!colorHex) {
@@ -41,6 +49,7 @@ export default function CaptainPage() {
   const [standings, setStandings] = useState<DashboardTeamItem[]>([]);
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [myTeam, setMyTeam] = useState<DraftMyTeamResponse | null>(null);
+  const [allMembers, setAllMembers] = useState<TeamMemberItem[]>([]);
   const [overviewLoading, setOverviewLoading] = useState(true);
 
   const [teamNameInput, setTeamNameInput] = useState("");
@@ -95,20 +104,34 @@ export default function CaptainPage() {
     setOverviewLoading(true);
 
     try {
-      const [dashboardRows, scheduleRows, myTeamRows] = await Promise.all([
+      const [dashboardRows, scheduleRows, myTeamRows, teams] = await Promise.all([
         getResultsDashboardApi(userId),
         listScheduleApi(userId),
         getMyDraftTeamApi(userId),
+        listTeamsApi(userId),
       ]);
+
+      const myCurrentTeam =
+        teams.find((item) => item.captain_user_id === userId) || null;
+
+      let memberRows: TeamMemberItem[] = [];
+      if (myCurrentTeam?.code) {
+        memberRows = await listMembersApi({
+          team_code: myCurrentTeam.code,
+          userId,
+        });
+      }
 
       setStandings(dashboardRows.teams || []);
       setSchedules(scheduleRows || []);
       setMyTeam(myTeamRows);
+      setAllMembers(memberRows || []);
     } catch (error) {
       console.error("Failed to load captain overview", error);
       setStandings([]);
       setSchedules([]);
       setMyTeam(null);
+      setAllMembers([]);
     } finally {
       setOverviewLoading(false);
     }
@@ -181,15 +204,15 @@ export default function CaptainPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#07111f] text-white">
+    <div className={`${notoSans.className} min-h-screen bg-[#07111f] text-white`}>
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.18),transparent_25%),radial-gradient(circle_at_80%_10%,rgba(16,185,129,0.14),transparent_22%),radial-gradient(circle_at_bottom,rgba(234,179,8,0.10),transparent_30%)]" />
 
       <div className="relative z-10">
         <header className="border-b border-white/10 bg-white/5 backdrop-blur-xl">
-          <div className="mx-auto flex  items-center justify-between px-20 py-4">
+          <div className="mx-auto flex items-center justify-between px-20 py-4">
             <div>
-              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-200">
-                MMS Sports Day
+              <div className="text-xs font-semibold tracking-[0.12em] text-emerald-200">
+                MMS Sports Cup 2026
               </div>
               <h1 className="mt-1 text-3xl font-black text-white">
                 Ахлагчийн самбар
@@ -198,7 +221,7 @@ export default function CaptainPage() {
 
             <div className="flex items-center gap-3">
               <div className="hidden rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-right md:block">
-                <div className="text-[11px] uppercase tracking-[0.16em] text-slate-300">
+                <div className="text-[11px] tracking-[0.12em] text-slate-300">
                   Нэвтэрсэн хэрэглэгч
                 </div>
 
@@ -230,13 +253,14 @@ export default function CaptainPage() {
               standings={standings}
               schedules={schedules}
               myTeam={myTeam}
+              allMembers={allMembers}
               loading={overviewLoading || teamLoading}
             />
 
             <div className="space-y-6">
               <div className="rounded-[28px] border border-white/10 bg-white/10 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.25)] backdrop-blur-xl">
                 <div className="mb-4">
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">
+                  <div className="text-xs font-semibold tracking-[0.12em] text-cyan-200">
                     Багийн тохиргоо
                   </div>
                   <h2 className="mt-2 text-2xl font-black text-white">

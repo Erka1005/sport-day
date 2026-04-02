@@ -110,7 +110,7 @@ export default function LoginPage() {
           <div className="max-w-2xl">
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-semibold tracking-[0.14em] text-cyan-200 backdrop-blur-md">
               <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
-              MMS Спорт Өдөрлөг Портал
+              MMS Sport Cup 2026
             </div>
 
             <h1 className="text-lg font-black leading-tight sm:text-5xl lg:text-4xl">
@@ -122,7 +122,7 @@ export default function LoginPage() {
             </h1>
 
             <p className="mt-5 max-w-xl text-sm leading-7 text-slate-300 sm:text-base">
-              Албан ёсны MMS Sports Day вэб порталаар дамжуулан хуваарь, мэдээ,
+              Албан ёсны MMS Sports Cup 2026 вэб порталаар дамжуулан хуваарь, мэдээ,
               багийн мэдээлэл болон хувь хэрэглэгчийн боломжууддаа хандаарай.
             </p>
 
