@@ -29,13 +29,15 @@ export type SportItem = {
 };
 
 /* ---------------- Schedule ---------------- */
-
 export type CreateSchedulePayload = {
-  sport_key: string;
-  start_at: string;
-  venue?: string;
-  date_label?: string;
+  sport_id: number;
+  date_label: string;
+  start_time: string;
+  end_time: string;
+  venue: string;
+  status?: string;
   note?: string;
+  sort_order?: number;
 };
 export type UpdateSchedulePayload = Partial<CreateSchedulePayload>;
 
