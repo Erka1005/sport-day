@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import { Noto_Sans } from "next/font/google";
 import CaptainOverviewDashboard from "@/components/captain/captain-overview-dashboard";
-import MyTeamCard from "@/components/captain/my-team-card";
 import {
   AuthUser,
   DashboardTeamItem,
@@ -56,6 +55,7 @@ export default function CaptainPage() {
   const [renameLoading, setRenameLoading] = useState(false);
   const [renameError, setRenameError] = useState("");
   const [renameSuccess, setRenameSuccess] = useState("");
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     const currentUser = getAuthUser();
@@ -209,12 +209,12 @@ export default function CaptainPage() {
 
       <div className="relative z-10">
         <header className="border-b border-white/10 bg-white/5 backdrop-blur-xl">
-          <div className="mx-auto flex items-center justify-between px-20 py-4">
-            <div>
+          <div className="mx-auto flex max-w-[1600px] items-center justify-between px-5 py-4 sm:px-6 xl:px-8">
+            <div className="min-w-0">
               <div className="text-xs font-semibold tracking-[0.12em] text-emerald-200">
-                MMS Sports Cup 2026
+                MMS SPORTS CUP 2026
               </div>
-              <h1 className="mt-1 text-3xl font-black text-white">
+              <h1 className="mt-1 text-2xl font-black text-white sm:text-3xl">
                 Ахлагчийн самбар
               </h1>
             </div>
@@ -230,7 +230,7 @@ export default function CaptainPage() {
                     className="inline-block h-3 w-3 rounded-full"
                     style={teamStyle}
                   />
-                  <span className="text-sm font-semibold text-white">
+                  <span className="max-w-[220px] truncate text-sm font-semibold text-white">
                     {displayName}
                   </span>
                 </div>
@@ -246,69 +246,95 @@ export default function CaptainPage() {
           </div>
         </header>
 
-        <main className="mx-auto px-20 py-8">
-          <div className="mb-6 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-            <CaptainOverviewDashboard
-              team={team}
-              standings={standings}
-              schedules={schedules}
-              myTeam={myTeam}
-              allMembers={allMembers}
-              loading={overviewLoading || teamLoading}
-            />
-
-            <div className="space-y-6">
-              <div className="rounded-[28px] border border-white/10 bg-white/10 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.25)] backdrop-blur-xl">
-                <div className="mb-4">
-                  <div className="text-xs font-semibold tracking-[0.12em] text-cyan-200">
-                    Багийн тохиргоо
+        <main className="mx-auto max-w-[1600px] px-4 py-5 sm:px-6 xl:px-8">
+          <div className="mb-5 rounded-[28px] border border-white/10 bg-white/10 p-4 shadow-[0_18px_40px_rgba(0,0,0,0.18)] backdrop-blur-xl sm:p-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="min-w-0">
+                <div className="text-xs font-semibold tracking-[0.12em] text-cyan-200">
+                  БАГИЙН ТОВЧ УДИРДЛАГА
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-3">
+                  <div className="text-lg font-bold text-white sm:text-xl">
+                    {team?.name || "Багийн нэргүй"}
                   </div>
-                  <h2 className="mt-2 text-2xl font-black text-white">
-                    Багийн нэр солих
-                  </h2>
-                </div>
-
-                <div className="space-y-4">
-                  <input
-                    type="text"
-                    value={teamNameInput}
-                    onChange={(e) => setTeamNameInput(e.target.value)}
-                    placeholder="Багийн нэр"
-                    className="w-full rounded-2xl border border-white/10 bg-black/10 px-4 py-3 text-white outline-none"
-                  />
-
-                  {renameError ? (
-                    <div className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-                      {renameError}
-                    </div>
+                  {team?.code ? (
+                    <span className="rounded-full border border-white/10 bg-black/10 px-3 py-1 text-xs font-semibold text-slate-200">
+                      Код: {team.code}
+                    </span>
                   ) : null}
-
-                  {renameSuccess ? (
-                    <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
-                      {renameSuccess}
-                    </div>
-                  ) : null}
-
-                  <button
-                    onClick={() => void handleRenameTeam()}
-                    disabled={renameLoading}
-                    className="w-full rounded-2xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-3 text-sm font-bold text-white transition disabled:opacity-70"
-                  >
-                    {renameLoading ? "Хадгалж байна..." : "Багийн нэр шинэчлэх"}
-                  </button>
-
-                  <button
-                    onClick={() => router.push("/standings")}
-                    className="w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
-                  >
-                    Бүтэн standings харах
-                  </button>
                 </div>
+                <p className="mt-2 text-sm text-slate-300">
+                  Доорх хэсгүүдээр багийнхаа мэдээллийг хэт олон cardгүйгээр цэгцтэй харна.
+                </p>
               </div>
 
-              <MyTeamCard userId={user.user_id} />
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setShowSettings((prev) => !prev)}
+                  className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15"
+                >
+                  {showSettings ? "Тохиргоог хаах" : "Багийн тохиргоо"}
+                </button>
+
+                <button
+                  onClick={() => router.push("/standings")}
+                  className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15"
+                >
+                  Бүтэн хүснэгт
+                </button>
+              </div>
             </div>
+
+            {showSettings ? (
+              <div className="mt-4 border-t border-white/10 pt-4">
+                <div className="grid gap-4 xl:grid-cols-[1fr_220px]">
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-slate-200">
+                      Багийн нэр
+                    </label>
+                    <input
+                      type="text"
+                      value={teamNameInput}
+                      onChange={(e) => setTeamNameInput(e.target.value)}
+                      placeholder="Багийн нэр"
+                      className="w-full rounded-2xl border border-white/10 bg-black/10 px-4 py-3 text-white outline-none"
+                    />
+
+                    {renameError ? (
+                      <div className="mt-3 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                        {renameError}
+                      </div>
+                    ) : null}
+
+                    {renameSuccess ? (
+                      <div className="mt-3 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+                        {renameSuccess}
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="flex items-end">
+                    <button
+                      onClick={() => void handleRenameTeam()}
+                      disabled={renameLoading}
+                      className="w-full rounded-2xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-3 text-sm font-bold text-white transition disabled:opacity-70"
+                    >
+                      {renameLoading ? "Хадгалж байна..." : "Нэр шинэчлэх"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </div>
+
+          <CaptainOverviewDashboard
+            team={team}
+            standings={standings}
+            schedules={schedules}
+            myTeam={myTeam}
+            allMembers={allMembers}
+            loading={overviewLoading || teamLoading}
+          />
         </main>
       </div>
     </div>
