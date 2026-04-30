@@ -26,7 +26,7 @@ export default function PublicHero({ slides, onScheduleClick }: PublicHeroProps)
     <section className="overflow-hidden rounded-[28px] border border-white/10 bg-[#07111f] shadow-[0_30px_100px_rgba(0,0,0,0.45)] md:rounded-[36px]">
       {/* Desktop */}
       <div
-        className="hidden min-h-[620px] bg-cover bg-left bg-no-repeat md:block"
+        className="hidden min-h-[600px] bg-cover bg-left bg-no-repeat md:block"
         style={{ backgroundImage: `url(${heroImage})` }}
       >
         <div className="relative min-h-[620px]">
