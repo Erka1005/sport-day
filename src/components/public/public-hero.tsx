@@ -1,10 +1,19 @@
-import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { HeroSlide } from "@/mock/public-dashboard-mock";
 
 type PublicHeroProps = {
   slides: HeroSlide[];
   onScheduleClick?: () => void;
 };
+
+const GALLERY_IMAGES = [
+  "/images/gallery/1.jpg",
+  "/images/gallery/2.jpg",
+  "/images/gallery/3.jpg",
+  "/images/gallery/4.jpg",
+
+];
 
 export default function PublicHero({ slides, onScheduleClick }: PublicHeroProps) {
   const primarySlide = slides?.[0];
@@ -58,13 +67,40 @@ function InfoCard({
   primarySlide: HeroSlide;
   onScheduleClick?: () => void;
 }) {
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setActiveImageIndex((prev) => (prev + 1) % GALLERY_IMAGES.length);
+    }, 3500);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const activeImage = GALLERY_IMAGES[activeImageIndex];
+
   return (
     <div className="relative w-full max-w-md overflow-hidden rounded-[26px] border border-white/15 bg-black/35 p-5 shadow-2xl backdrop-blur-xl md:rounded-[30px] md:p-6">
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.14),transparent_35%,rgba(34,211,238,0.08))]" />
 
-      <p className="relative mt-2 text-right text-3xl font-bold uppercase tracking-[0.40em] text-cyan-200">
-        {primarySlide.subtitle}
-      </p>
+      <div className="relative mb-5 overflow-hidden rounded-3xl border border-white/15 bg-white/10">
+        <div className="relative aspect-[16/10] w-full overflow-hidden border-2 rounded-3xl border-cyan-200">
+          <AnimatePresence mode="wait">
+            <motion.img
+              key={activeImage}
+              src={activeImage}
+              alt="Gallery"
+              initial={{ opacity: 0, scale: 1.06 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.02 }}
+              transition={{ duration: 0.6, ease: "easeOut" }}
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+          </AnimatePresence>
+        </div>
+      </div>
+
+    
 
       <p className="relative mt-4 text-sm leading-7 text-white/70">
         {primarySlide.description}

@@ -38,7 +38,7 @@ export type AnnouncementItem = {
 export const heroSlides: HeroSlide[] = [
   {
     id: 1,
-    title: "MMS Sports Day 2026",
+    title: "MMS Sports Cup 2026",
     subtitle: "Нэгдсэн мэдээллийн самбар",
     description:
       "Хуваарь, үр дүн, лидер самбар болон онцлох мөчүүдийг нэг дороос хараарай.",
